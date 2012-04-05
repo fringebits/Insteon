@@ -1,0 +1,27 @@
+﻿<UserControl 
+    x:Class="Insteon.Mayhem.PageFrame"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    xmlns:my="clr-namespace:Insteon.Mayhem"
+    mc:Ignorable="d" 
+    Width="400"
+    Loaded="UserControl_Loaded"
+    >
+    
+    <StackPanel Width="400">
+        <Grid Name="pagePanel" Height="150" ClipToBounds="True">
+            <my:ConnectionPage VerticalAlignment="Top" />
+        </Grid>
+        <Canvas Height="32">
+            <my:InsteonLogo x:Name="insteonLogo" Canvas.Left="250" Canvas.Top="8" Width="150" Cursor="Hand" MouseLeftButtonUp="insteonLogo_MouseLeftButtonUp" ToolTip="www.insteon.net" />
+            <TextBlock x:Name="statusTextBlock" Canvas.Left="26" Canvas.Top="9" Height="16" Text="Connecting..." Width="224" MouseUp="StatusControl_MouseUp" />
+            <Viewbox x:Name="iconViewbox" Canvas.Left="6" Canvas.Top="9" Width="16" Height="16"  MouseUp="StatusControl_MouseUp">
+                <my:SpinningIcon x:Name="spinnerIcon" />
+            </Viewbox>
+            <ProgressBar Canvas.Left="113" Canvas.Top="11" Width="111" Height="16" Name="progressBar" Minimum="0" Maximum="100"/>
+        </Canvas>
+    </StackPanel>
+
+</UserControl>

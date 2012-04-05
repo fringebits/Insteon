@@ -1,0 +1,12 @@
+﻿<src:WpfConfiguration
+    x:Class="Insteon.Mayhem.InsteonEventConfig"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:src="clr-namespace:MayhemWpf.UserControls;assembly=MayhemWpf"
+    xmlns:my="clr-namespace:Insteon.Mayhem"
+    Width="400"
+    >
+    
+    <my:PageFrame />
+    
+</src:WpfConfiguration>

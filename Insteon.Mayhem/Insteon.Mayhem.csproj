@@ -1,0 +1,194 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{FE9A4A02-13BD-4B94-8346-5BE3E06855CB}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Insteon.Mayhem</RootNamespace>
+    <AssemblyName>Insteon.Mayhem</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="MayhemCore">
+      <HintPath>..\packages\MayhemCore.1.0.0\lib\net40\MayhemCore.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MayhemWpf">
+      <HintPath>..\packages\MayhemWpf.1.0.0\lib\net40\MayhemWpf.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Dialogs\ConnectionDialog.xaml.cs">
+      <DependentUpon>ConnectionDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Widgets\InsteonLogo.xaml.cs">
+      <DependentUpon>InsteonLogo.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Insteon\InsteonEventDataItem.cs" />
+    <Compile Include="Insteon\InsteonReactionDataItem.cs" />
+    <Compile Include="Pages\PageFrame.xaml.cs">
+      <DependentUpon>PageFrame.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\NewEventPage.xaml.cs">
+      <DependentUpon>NewEventPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\ConnectionFailPage.xaml.cs">
+      <DependentUpon>ConnectionFailPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Events\InsteonEvent.cs" />
+    <Compile Include="Events\InsteonEventConfig.xaml.cs">
+      <DependentUpon>InsteonEventConfig.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Insteon\InsteonService.cs" />
+    <Compile Include="Reactions\InsteonReaction.cs" />
+    <Compile Include="Reactions\InsteonReactionConfig.xaml.cs">
+      <DependentUpon>InsteonReactionConfig.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\NewReactionPage.xaml.cs">
+      <DependentUpon>NewReactionPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\ManageReactionPage.xaml.cs">
+      <DependentUpon>ManageReactionPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\ManageEventPage.xaml.cs">
+      <DependentUpon>ManageEventPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\UIHelper.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Pages\ConnectionPage.xaml.cs">
+      <DependentUpon>ConnectionPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Widgets\GlowingIcon.xaml.cs">
+      <DependentUpon>GlowingIcon.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Widgets\SwitchLincAnimation.xaml.cs">
+      <DependentUpon>SwitchLincAnimation.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Widgets\SpinningIcon.xaml.cs">
+      <DependentUpon>SpinningIcon.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Widgets\StopIcon.xaml.cs">
+      <DependentUpon>StopIcon.xaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Insteon.Network\Insteon.Network.csproj">
+      <Project>{89C16795-688B-42D8-A701-0831D4C3FB96}</Project>
+      <Name>Insteon.Network</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="Dialogs\ConnectionDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Widgets\InsteonLogo.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\PageFrame.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\NewEventPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\ConnectionFailPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Events\InsteonEventConfig.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Reactions\InsteonReactionConfig.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\NewReactionPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Pages\ManageReactionPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Pages\ManageEventPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\ConnectionPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Widgets\GlowingIcon.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Widgets\SwitchLincAnimation.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Widgets\SpinningIcon.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Widgets\StopIcon.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Widgets\Images\Finger.png" />
+    <Resource Include="Widgets\Images\SwitchLinc.png" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>xcopy /Y "$(ProjectDir)$(OutDir)*.dll" "C:\Program Files (x86)\Outercurve\Mayhem\Insteon"</PostBuildEvent>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
