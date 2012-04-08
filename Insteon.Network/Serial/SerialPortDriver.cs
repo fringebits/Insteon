@@ -57,6 +57,8 @@ namespace Insteon.Network.Serial
 
         public byte[] ReadAll()
         {
+            if (!port.IsOpen)
+                port.Open();
             int count = port.BytesToRead;
             byte[] data = new byte[count];
             port.Read(data, 0, count);
@@ -70,6 +72,8 @@ namespace Insteon.Network.Serial
 
         public void Write(byte[] data)
         {
+            if (!port.IsOpen)
+                port.Open();
             if (data == null)
                 throw new ArgumentNullException("data");
             port.Write(data, 0, data.Length);

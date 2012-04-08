@@ -16,7 +16,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -29,11 +28,15 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Insteon.Network;
 
 namespace Insteon.Mayhem
 {
     public partial class PageFrame : UserControl
     {
+        private bool lostConnection = false;
+        private bool retryConnection = false;
+
         public PageFrame()
         {
             InitializeComponent();
@@ -49,53 +52,78 @@ namespace Insteon.Mayhem
             InsteonService.Network.Disconnected += Network_Disconnected;
             InsteonService.Network.ConnectProgress += Network_ConnectProgress;
 
-            UpdateIcons();
             if (!InsteonService.Network.IsConnected)
                 InsteonService.StartNetwork();
+
+            UpdateStatus();
         }
 
-        private void UpdateIcons()
+        public void UpdateStatus()
         {
-            Window window = Window.GetWindow(this);
-            if (InsteonService.Network.IsConnected)
+            Type pageType = pagePanel.Children.Count > 0 ? pagePanel.Children[0].GetType() : null;
+
+            if (lostConnection && retryConnection)
             {
-                statusTextBlock.Text = string.Format("Connected to {0}", InsteonService.Network.Connection.Name);
+                retryConnection = false; 
+                if (InsteonService.Network.VerifyConnection())
+                    lostConnection = false;
+            }
+
+            if (InsteonService.Network.IsConnected && !lostConnection)
+            {
+                statusTextBlock.Text = string.Format("Connected to '{0}'", InsteonService.Network.Connection.Name);
+                statusTextBlock.ToolTip = InsteonService.GetConnectionInfo(InsteonService.Network.Connection);
                 iconViewbox.Child = new GlowingIcon();
                 statusTextBlock.Cursor = Cursors.Hand;
                 iconViewbox.Cursor = Cursors.Hand;
-                progressBar.Visibility = Visibility.Hidden;
-                if (window != null)
-                    window.Cursor = Cursors.Arrow;
             }
-            else if (InsteonService.Connecting)
+            else if (InsteonService.Connecting || pageType == typeof(ConnectionPage))
             {
-                statusTextBlock.Text = "Connecting...";
+                if (InsteonService.SpecificConnection == null)
+                {
+                    statusTextBlock.Text = "Searching...";
+                    statusTextBlock.ToolTip = null;
+                }
+                else
+                {
+                    statusTextBlock.Text = string.Format("Connecting to '{0}'...", InsteonService.SpecificConnection.Name);
+                    statusTextBlock.ToolTip = InsteonService.GetConnectionInfo(InsteonService.SpecificConnection);
+                }
                 iconViewbox.Child = new SpinningIcon();
-                statusTextBlock.Cursor = Cursors.AppStarting;
-                iconViewbox.Cursor = Cursors.AppStarting;
-                progressBar.Visibility = Visibility.Visible;
-                if (window != null)
-                    window.Cursor = Cursors.AppStarting;
+                statusTextBlock.Cursor = Cursors.Arrow;
+                iconViewbox.Cursor = Cursors.Arrow;
             }
             else
             {
-                statusTextBlock.Text = "Not connected";
+                if (InsteonService.SpecificConnection == null)
+                {
+                    statusTextBlock.Text = "Not connected";
+                    statusTextBlock.ToolTip = null;
+                }
+                else
+                {
+                    statusTextBlock.Text = string.Format("Lost connection to '{0}'", InsteonService.SpecificConnection.Name);
+                    statusTextBlock.ToolTip = InsteonService.GetConnectionInfo(InsteonService.SpecificConnection);
+                }
                 iconViewbox.Child = new StopIcon();
                 statusTextBlock.Cursor = Cursors.Hand;
                 iconViewbox.Cursor = Cursors.Hand;
-                progressBar.Visibility = Visibility.Hidden;
-                if (window != null)
-                    window.Cursor = Cursors.Arrow;
             }
             iconViewbox.Cursor = statusTextBlock.Cursor;
+            iconViewbox.ToolTip = statusTextBlock.ToolTip;
         }
 
-        private void Network_ConnectProgress(object sender, ProgressChangedEventArgs e)
+        public void SetPage(UserControl page)
         {
-            this.Dispatcher.BeginInvoke(new Action(() => progressBar.Value = e.ProgressPercentage), null);
+            pagePanel.Children.Clear();
+            pagePanel.Children.Add(page);
+            pagePanel.Height = page.Height;
+            StatusControlsVisible = true;
+            UpdateStatus();
+            retryConnection = true;
         }
 
-        public void ShowConnectionDialog()
+        public bool ShowConnectionDialog()
         {
             ConnectionDialog dialog = new ConnectionDialog()
             {
@@ -105,34 +133,53 @@ namespace Insteon.Mayhem
 
             if (dialog.SelectedConnection != null)
             {
-                InsteonService.Network.Close();
+                if (!dialog.SelectedConnection.Equals(InsteonService.Network.Connection)) // do nothing if selected connection matches active connection
+                {
+                    StatusControlsVisible = false;
+                    UIHelper.RefreshElement(this);
+                    InsteonService.StartNetwork(dialog.SelectedConnection);
+                    SetPage(new ConnectionPage());
+                }
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
 
-                pagePanel.Children.RemoveRange(0, pagePanel.Children.Count);
-                pagePanel.Children.Add(new ConnectionPage());
-
-                InsteonService.ConnectionFailed += InsteonService_ConnectionFailed;
-                InsteonService.Network.Connected += Network_Connected;
-                UpdateIcons();
-
-                InsteonService.Connection = dialog.SelectedConnection;
-                if (!InsteonService.Network.IsConnected)
-                    InsteonService.StartNetwork();
+        public bool StatusControlsVisible
+        {
+            get
+            {
+                return iconViewbox.Visibility == Visibility.Visible;
+            }
+            set
+            {
+                iconViewbox.Visibility = value ? Visibility.Visible : Visibility.Hidden;
+                statusTextBlock.Visibility = value ? Visibility.Visible : Visibility.Hidden;
             }
         }
 
         void Network_Connected(object sender, EventArgs e)
         {
-            this.Dispatcher.BeginInvoke(new Action(() => this.UpdateIcons()), null);
-        }
-
-        void InsteonService_ConnectionFailed(object sender, EventArgs e)
-        {
-            this.Dispatcher.BeginInvoke(new Action(() => this.UpdateIcons()), null);
+            this.Dispatcher.BeginInvoke(new Action(() => this.UpdateStatus()), null);
         }
 
         void Network_Disconnected(object sender, EventArgs e)
         {
-            this.Dispatcher.BeginInvoke(new Action(() => this.UpdateIcons()), null);
+            lostConnection = true;
+            this.Dispatcher.BeginInvoke(new Action(() => this.UpdateStatus()), null);
+        }
+
+        void Network_ConnectProgress(object sender, ConnectProgressChangedEventArgs e)
+        {
+            this.Dispatcher.BeginInvoke(new Action(() => this.UpdateStatus()), null);
+        }
+
+        void InsteonService_ConnectionFailed(object sender, EventArgs e)
+        {
+            this.Dispatcher.BeginInvoke(new Action(() => this.UpdateStatus()), null);
         }
 
         private void StatusControl_MouseUp(object sender, MouseButtonEventArgs e)
@@ -143,7 +190,7 @@ namespace Insteon.Mayhem
 
         private void insteonLogo_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            Process.Start("http://www.insteon.net");
+            Process.Start(insteonLogo.ToolTip as string);
         }
     }
 }

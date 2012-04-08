@@ -36,6 +36,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConnectProgressChangedEventHandler.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="EchoStatus.cs" />
     <Compile Include="InsteonAddress.cs" />

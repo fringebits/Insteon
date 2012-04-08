@@ -26,7 +26,7 @@ namespace Insteon.Network
     // This class is responsible communicating with the Smarthome web service to obtain the list of registered devices on the local network.
     internal static class SmartLincFinder
     {
-        public static List<SmartLincInfo> GetRegisteredSmartLincs()
+        public static SmartLincInfo[] GetRegisteredSmartLincs()
         {
             List<SmartLincInfo> list = new List<SmartLincInfo>();
 
@@ -58,7 +58,7 @@ namespace Insteon.Network
                 }
             }
                         
-            return list;
+            return list.ToArray();
         }
 
         public static string GetSmartLincName(string url)
@@ -80,6 +80,7 @@ namespace Insteon.Network
             {
                 string html;
                 HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
+                request.Timeout = Constants.webRequestTimeout;
                 WebResponse response = request.GetResponse();
                 using (StreamReader r = new StreamReader(response.GetResponseStream()))
                 {

@@ -45,18 +45,18 @@ namespace Insteon.Network
         public byte DevCat { get; private set; }
 
         /// <summary>
-        /// The device sub-category representing various types of products within a product family.
-        /// </summary>
-        public byte SubCat { get; private set; }
-
-        /// <summary>
         /// The firmware version running within the device.
         /// </summary>
         public byte FirmwareVersion { get; private set; }
 
         /// <summary>
-        /// Determines whether the identity is set.
+        /// Gets a value indicating whether this InsteonIdentity is empty.
         /// </summary>
-        public bool Zero { get { return DevCat == 0 && SubCat == 0 && FirmwareVersion == 0; } }
+        public bool IsEmpty { get { return DevCat == 0 && SubCat == 0 && FirmwareVersion == 0; } }
+
+        /// <summary>
+        /// The device sub-category representing various types of products within a product family.
+        /// </summary>
+        public byte SubCat { get; private set; }
     }
 }

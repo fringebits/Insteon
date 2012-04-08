@@ -16,21 +16,23 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.ComponentModel;
 using System.Text;
-using Insteon.Network;
 
-namespace Insteon.Mayhem
+namespace Insteon.Network
 {
-    public class InsteonEventDataItem
+    public class ConnectProgressChangedEventArgs : EventArgs 
     {
-        public string Device { get; set; }
-        public InsteonDeviceStatus DeviceStatus { get; set; }
-        public byte Group { get; set; }
-        public bool IsEmpty { get { return Group == 0 || string.IsNullOrWhiteSpace(Device); } }
-        public override string ToString()
+        public ConnectProgressChangedEventArgs(int progressPercentage, string status)
         {
-            return string.Format("{0} {1}", Device, DeviceStatus.ToString());
+            this.Cancel = false;
+            this.ProgressPercentage = progressPercentage;
+            this.Status = status;
         }
+
+        public bool Cancel { get; set; }
+        public int ProgressPercentage { get; private set; }
+        public string Status { get; private set; }
     }
+    public delegate void ConnectProgressChangedEventHandler(object sender, ConnectProgressChangedEventArgs data);
 }

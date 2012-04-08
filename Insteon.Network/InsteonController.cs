@@ -110,25 +110,12 @@ namespace Insteon.Network
         /// Returns an array of device links in the INSTEON controller.
         /// </summary>
         /// <returns>An array of objects representing each device link.</returns>
-        /// <remarks>
-        /// This method does not throw an exception.
-        /// </remarks>
         public InsteonDeviceLinkRecord[] GetLinks()
         {
-            List<InsteonDeviceLinkRecord> list = new List<InsteonDeviceLinkRecord>();
-            Dictionary<PropertyKey, int> properties;
-
-            byte[] message1 = { 0x69 };
-            if (network.Messenger.TrySendReceive(message1, false, 0x57, out properties) == EchoStatus.ACK)
-            {
-                list.Add(new InsteonDeviceLinkRecord(properties));
-
-                byte[] message2 = { 0x6A };
-                while (network.Messenger.TrySendReceive(message2, false, 0x57, out properties) == EchoStatus.ACK)
-                    list.Add(new InsteonDeviceLinkRecord(properties));
-            }
-
-            return list.ToArray();
+            InsteonDeviceLinkRecord[] links;
+            if (!TryGetLinks(out links))
+                throw new IOException();
+            return links;
         }
 
         /// <summary>
@@ -246,6 +233,51 @@ namespace Insteon.Network
                 return false;
             timer.Start();
             IsInLinkingMode = true;
+            return true;
+        }
+
+        /// <summary>
+        /// Returns an array of device links in the INSTEON controller.
+        /// </summary>
+        /// <param name="links">An array of objects representing each device link.</param>
+        /// <remarks>
+        /// This method does not throw an exception.
+        /// </remarks>
+        public bool TryGetLinks(out InsteonDeviceLinkRecord[] links)
+        {
+            links = null;
+            List<InsteonDeviceLinkRecord> list = new List<InsteonDeviceLinkRecord>();
+            Dictionary<PropertyKey, int> properties;
+            EchoStatus status = EchoStatus.None;
+
+            byte[] message1 = { 0x69 };
+            status = network.Messenger.TrySendReceive(message1, false, 0x57, out properties);
+            if (status == EchoStatus.NAK)
+            {
+                links = new InsteonDeviceLinkRecord[0];
+                return true;
+            }
+            else if (status == EchoStatus.ACK)
+            {
+                list.Add(new InsteonDeviceLinkRecord(properties));
+            }
+            else
+            {
+                return false;
+            }
+
+            byte[] message2 = { 0x6A };
+            status = network.Messenger.TrySendReceive(message2, false, 0x57, out properties);
+            while (status == EchoStatus.ACK)
+            {
+                list.Add(new InsteonDeviceLinkRecord(properties));
+                status = network.Messenger.TrySendReceive(message2, false, 0x57, out properties);
+            }
+
+            if (status != EchoStatus.NAK)
+                return false;
+
+            links = list.ToArray();
             return true;
         }
 

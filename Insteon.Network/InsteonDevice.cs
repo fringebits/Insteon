@@ -156,7 +156,7 @@ namespace Insteon.Network
 
         private void OnSetButtonPressed(InsteonMessage message)
         {
-            if (this.Identity.Zero)
+            if (this.Identity.IsEmpty)
             {
                 byte devCat = (byte)message.Properties[PropertyKey.DevCat];
                 byte subCat = (byte)message.Properties[PropertyKey.DevCat];
@@ -189,10 +189,10 @@ namespace Insteon.Network
                     break;
 
                 case InsteonMessageType.IncrementBeginBroadcast:
-                    dimmerDirection = message.Properties[PropertyKey.IncrementDirection] == 0 ? DimmerDirection.Up : DimmerDirection.Down;
+                    dimmerDirection = message.Properties[PropertyKey.IncrementDirection] != 0 ? DimmerDirection.Up : DimmerDirection.Down;
                     break;
 
-                case InsteonMessageType.IncrementEndCleanup:
+                case InsteonMessageType.IncrementEndBroadcast:
                     if (dimmerDirection == DimmerDirection.Up)
                     {
                         OnDeviceStatusChanged(InsteonDeviceStatus.Brighten);

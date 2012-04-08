@@ -32,7 +32,7 @@ namespace Insteon.Network.Serial
         private readonly string host = string.Empty;
         private readonly IPAddress address = IPAddress.None;
         private DataAvailable notify = null;
-        private readonly Thread thread;
+        private Thread thread = null;
         private bool running = false;
         private readonly List<byte> sendBuffer = new List<byte>();        
         private readonly List<byte> receiveBuffer = new List<byte>();
@@ -42,7 +42,6 @@ namespace Insteon.Network.Serial
         {
             if (!IPAddress.TryParse(host, out address))
                 this.host = host;
-            thread = new Thread(this.ThreadProc);
         }
 
         public void Close()
@@ -62,12 +61,19 @@ namespace Insteon.Network.Serial
 
         public void Open()
         {
+            thread = new Thread(this.ThreadProc);
             thread.Start();
             Thread.Sleep(100); // yield
         }
 
         public byte[] ReadAll()
         {
+            if (!running)
+            {
+                Log.WriteLine("NetDriver thread no longer running, restarting...");
+                Open();
+            }
+
             byte[] data = receiveBuffer.ToArray();
             receiveBuffer.Clear();
             return data;
@@ -99,18 +105,18 @@ namespace Insteon.Network.Serial
                         byte[] data = sendBuffer.ToArray();
                         sendBuffer.Clear();
                         socket.Send(data, SocketFlags.None);
-                        Log.WriteLine("NetDriver send data: {0}", Utilities.ByteArrayToString(data));
+                        //Log.WriteLine("NetDriver send data: {0}", Utilities.ByteArrayToString(data));
                     }
 
-                    if (socket.Poll(100, SelectMode.SelectRead))
+                    if (socket.Poll(100, SelectMode.SelectRead) && socket.Available > 0)
                     {
-                        Log.WriteLine("NetDriver data available...");
+                        //Log.WriteLine("NetDriver data available...");
                         while (socket.Available > 0)
                         {
                             byte[] data = new byte[socket.Available];
                             socket.Receive(data, SocketFlags.Partial);
                             receiveBuffer.AddRange(data);
-                            Log.WriteLine("NetDriver received data: {0}", Utilities.ByteArrayToString(data));
+                            //Log.WriteLine("NetDriver received data: {0}", Utilities.ByteArrayToString(data));
                         }
                         if (notify != null)
                             notify();
@@ -122,7 +128,7 @@ namespace Insteon.Network.Serial
             }
             catch (ThreadInterruptedException)
             {
-                Log.WriteLine("NetDriver thread connect interrupted");
+                //Log.WriteLine("NetDriver thread connect interrupted");
             }
             catch (SocketException ex)
             {
@@ -138,10 +144,10 @@ namespace Insteon.Network.Serial
         {
             if (!running)
             {
-                Log.WriteLine("ERROR: NetDriver no longer running");
-                throw new InvalidOperationException();
+                Log.WriteLine("NetDriver thread no longer running, restarting...");
+                Open();
             }
-            Log.WriteLine("NetDriver send buffer: {0}", Utilities.ByteArrayToString(data));
+            //Log.WriteLine("NetDriver send buffer: {0}", Utilities.ByteArrayToString(data));
             sendBuffer.AddRange(data);
             Thread.Sleep(1); // yield
         }
@@ -149,7 +155,10 @@ namespace Insteon.Network.Serial
         public void Wait(int timeout)
         {
             if (!running)
-                throw new InvalidOperationException();
+            {
+                Log.WriteLine("NetDriver thread no longer running, restarting...");
+                Open();
+            }
             wait.WaitOne(timeout);
         }
     }

@@ -20,8 +20,8 @@
             <ComboBoxItem Content="Off" />
             <ComboBoxItem Content="Fast On (Double Tap)" />
             <ComboBoxItem Content="Fast Off (Double Tap)" />
-            <ComboBoxItem Content="Brightened" />
-            <ComboBoxItem Content="Dimmed" />
+            <ComboBoxItem Content="Brighten" />
+            <ComboBoxItem Content="Dim" />
         </ComboBox>
     </Canvas>
 </UserControl>

@@ -36,8 +36,12 @@ namespace Insteon.Network
         private readonly InsteonNetworkBridge bridge;
         private readonly List<WaitItem> waitList = new List<WaitItem>();
         private byte[] sentMessage = null; // bytes of last sent message, used to match the echo
+        private bool echoCommand = false;
+        private InsteonMessage echoMessage = null;
 
         public Dictionary<PropertyKey, int> ControllerProperties { get; private set; }
+
+        public bool IsConnected { get { return bridge.IsConnected; } }
 
         public InsteonMessenger(InsteonNetwork network)
         {
@@ -65,94 +69,6 @@ namespace Insteon.Network
                 ControllerProperties = bridge.Connect(connection);
             }
             Log.WriteLine("Connected to '{0}'", connection);
-        }
-
-        public bool TryConnect(InsteonConnection connection)
-        {
-            try
-            {
-                Log.WriteLine("Trying connection '{0}'...", connection.ToString());
-                lock (bridge)
-                {
-                    ControllerProperties = bridge.Connect(connection);
-                }
-                Log.WriteLine("Connected to '{0}'", connection);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.WriteLine("Error connecting to '{0}'. {1}", connection.ToString(), ex.Message);
-            }
-            return false;
-        }
-
-        public void Send(byte[] message)
-        {
-            if (TrySend(message, true) != EchoStatus.ACK)
-                throw new IOException(string.Format("Failed to send message '{0}'", Utilities.ByteArrayToString(message)));
-        }
-
-        public EchoStatus TrySend(byte[] message)
-        {
-            return TrySend(message, true);
-        }
-
-        public EchoStatus TrySend(byte[] message, bool retryOnNak)
-        {
-            EchoStatus status = EchoStatus.Unknown;
-            lock (bridge)
-            {
-                sentMessage = message;
-                try
-                {
-                    status = bridge.Send(message, retryOnNak);
-                }
-                catch (InvalidOperationException)
-                {
-                    bridge.Close();
-                    network.Disconnect();
-                }
-                catch (Exception ex)
-                {
-                    if (Debugger.IsAttached)
-                        throw;
-                    Log.WriteLine("UNEXPECTED ERROR: {0}", ex.Message);
-                }
-                finally
-                {
-                    sentMessage = null;
-                }
-            }
-            return status;
-        }
-
-        public void SendReceive(byte[] message, byte receiveMessageId, out Dictionary<PropertyKey, int> properties)
-        {
-            if (TrySendReceive(message, true, receiveMessageId, out properties) != EchoStatus.ACK)
-                throw new IOException(string.Format("Failed to send message '{0}'.", Utilities.ByteArrayToString(message)));
-        }
-
-        public EchoStatus TrySendReceive(byte[] message, bool retryOnNak, byte receiveMessageId, out Dictionary<PropertyKey, int> properties)
-        {
-            properties = null;
-            WaitItem item = new WaitItem(receiveMessageId);
-            
-            lock (waitList)
-                waitList.Add(item);
-
-            EchoStatus status = TrySend(message, retryOnNak);
-            if (status == EchoStatus.ACK)
-            {
-                if (item.Message == null)
-                    item.MessageEvent.WaitOne(Constants.messageTimeout);
-                if (item.Message != null)
-                    properties = item.Message.Properties;
-            }
-
-            lock (waitList)
-                waitList.Remove(item);
-
-            return status;
         }
 
         private void OnMessage(InsteonMessage message)
@@ -188,6 +104,126 @@ namespace Insteon.Network
             }
         }
 
+        public void Send(byte[] message)
+        {
+            if (TrySend(message, true) != EchoStatus.ACK)
+                throw new IOException(string.Format("Failed to send message '{0}'", Utilities.ByteArrayToString(message)));
+        }
+
+        public void SendReceive(byte[] message, byte receiveMessageId, out Dictionary<PropertyKey, int> properties)
+        {
+            if (TrySendReceive(message, true, receiveMessageId, out properties) != EchoStatus.ACK)
+                throw new IOException(string.Format("Failed to send message '{0}'.", Utilities.ByteArrayToString(message)));
+        }
+
+        public bool TryConnect(InsteonConnection connection)
+        {
+            if (connection != null)
+            {
+                try
+                {
+                    Log.WriteLine("Trying connection '{0}'...", connection.ToString());
+                    lock (bridge)
+                    {
+                        ControllerProperties = bridge.Connect(connection);
+                    }
+                    Log.WriteLine("Connected to '{0}'", connection);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLine("ERROR: Cound not connect to '{0}'. {1}", connection.ToString(), ex.Message);
+                }
+            }
+            return false;
+        }
+
+        public EchoStatus TrySend(byte[] message)
+        {
+            return TrySend(message, true);
+        }
+
+        public EchoStatus TrySend(byte[] message, bool retryOnNak)
+        {
+            return TrySend(message, retryOnNak, message.Length);
+        }
+
+        public EchoStatus TrySend(byte[] message, bool retryOnNak, int echoLength)
+        {
+            EchoStatus status = EchoStatus.None;
+
+            lock (bridge)
+            {
+                sentMessage = message;
+                try
+                {
+                    status = bridge.Send(message, retryOnNak, echoLength);
+                }
+                catch (InvalidOperationException)
+                {
+                    Log.WriteLine("ERROR: Bridge send command fatal error");
+                }
+                catch (IOException)
+                {
+                    Log.WriteLine("ERROR: Bridge send command fatal error");
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLine("ERROR: Unexpected failure... {0}", ex.Message);
+                    if (Debugger.IsAttached)
+                        throw;
+                }
+                finally
+                {
+                    sentMessage = null;
+                }
+            }
+
+            if (status == EchoStatus.None)
+            {
+                Log.WriteLine("ERROR: No response from serial port");
+                network.OnDisconnected();
+            }
+
+            return status;
+        }
+
+        public EchoStatus TrySendEchoCommand(byte[] message, bool retryOnNak, int echoLength, out Dictionary<PropertyKey, int> properties)
+        {
+            echoMessage = null;
+
+            echoCommand = true;
+            EchoStatus status = TrySend(message, retryOnNak, echoLength);
+            echoCommand = false;
+
+            properties = echoMessage != null ? echoMessage.Properties : null;
+            echoMessage = null;
+            return status;
+        }
+
+        public EchoStatus TrySendReceive(byte[] message, bool retryOnNak, byte receiveMessageId, out Dictionary<PropertyKey, int> properties)
+        {
+            properties = null;
+            WaitItem item = new WaitItem(receiveMessageId);
+            
+            lock (waitList)
+                waitList.Add(item);
+
+            EchoStatus status = TrySend(message, retryOnNak);
+            if (status == EchoStatus.ACK)
+            {
+                if (item.Message == null)
+                    item.MessageEvent.WaitOne(Constants.messageTimeout);
+                if (item.Message != null)
+                    properties = item.Message.Properties;
+            }
+
+            lock (waitList)
+                waitList.Remove(item);
+
+            return status;
+        }
+
         private void UpdateWaitItems(InsteonMessage message)
         {
             lock (waitList)
@@ -203,6 +239,22 @@ namespace Insteon.Network
                         }
                 }
             }
+        }
+
+        public bool VerifyConnection()
+        {
+            if (!bridge.IsConnected)
+                return false;
+
+            byte[] message = { 0x60 };
+            Dictionary<PropertyKey, int> properties;
+            EchoStatus status = TrySendEchoCommand(message, true, 7, out properties);
+            if (status == EchoStatus.ACK || status == EchoStatus.NAK)
+                return true;
+
+            Log.WriteLine("ERROR: Verify connection failed");
+            network.OnDisconnected();
+            return false;
         }
 
         #region InsteonNetworkBridge.IMessageProcessor
@@ -225,7 +277,11 @@ namespace Insteon.Network
         bool InsteonNetworkBridge.IMessageProcessor.ProcessEcho(byte[] data, int offset, out int count)
         {
             byte[] message = Utilities.ArraySubset(data, offset, sentMessage.Length);
-            if (Utilities.ArraySequenceEquals(sentMessage, message))
+            if (echoCommand)
+            {
+                return InsteonMessageProcessor.ProcessMessage(data, offset, out count, out echoMessage);
+            }
+            else if (Utilities.ArraySequenceEquals(sentMessage, message))
             {
                 count = sentMessage.Length;
                 return true;

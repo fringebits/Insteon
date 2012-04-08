@@ -18,11 +18,11 @@
     <Canvas Loaded="Canvas_Loaded" Width="230">
         <Button Canvas.Left="59" Canvas.Top="272" Content="Connect" Height="29" Name="connectButton" Width="75" IsDefault="True" Click="connectButton_Click" IsEnabled="False" />
         <Button Canvas.Left="140" Canvas.Top="271" Content="Cancel" Height="30" Name="cancelButton" Width="72" IsCancel="True" />
-        <RadioButton Canvas.Left="12" Canvas.Top="12" Content="Choose a network connection:" Name="detectedRadioButton" IsChecked="True" Checked="detectedRadioButton_Checked" />
-        <ListBox Canvas.Left="31" Canvas.Top="34" Height="94" Name="detectedListBox" Width="181" MouseDoubleClick="connectionsListBox_MouseDoubleClick" />
-        <RadioButton Canvas.Left="13" Canvas.Top="146" Content="Specify a network connection:" Name="networkRadioButton" Checked="networkRadioButton_Checked" />
+        <RadioButton Canvas.Left="12" Canvas.Top="12" Content="Choose a local network connection:" Name="availableRadioButton" IsChecked="True" Checked="detectedRadioButton_Checked" />
+        <ListBox Canvas.Left="31" Canvas.Top="34" Height="94" Name="availableListBox" Width="181" MouseDoubleClick="connectionsListBox_MouseDoubleClick" />
+        <RadioButton Canvas.Left="13" Canvas.Top="146" Content="Specify a local network connection:" Name="networkRadioButton" Checked="networkRadioButton_Checked" />
         <TextBox Canvas.Left="31" Canvas.Top="168" Height="23" Name="networkTextBox" Width="181" IsEnabled="False" />
-        <RadioButton Canvas.Left="12" Canvas.Top="201" Content="Choose a serial connection:" Name="serialRadioButton" Checked="serialRadioButton_Checked" />
+        <RadioButton Canvas.Left="12" Canvas.Top="201" Content="Choose a serial connection:" Name="serialRadioButton" Checked="serialRadioButton_Checked" IsEnabled="False" />
         <ComboBox Canvas.Left="31" Canvas.Top="223" Height="23" Name="serialComboBox" Width="181" IsEnabled="False" />
         <my:SpinningIcon Canvas.Left="106" Canvas.Top="60" x:Name="spinnerIcon" Height="38" Width="36" />
     </Canvas>

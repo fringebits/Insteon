@@ -39,7 +39,7 @@ namespace Insteon.Network
         /// <summary>
         /// Communicates progress status during the sometimes lengthy process of connecting to a network.
         /// </summary>
-        public event ProgressChangedEventHandler ConnectProgress;
+        public event ConnectProgressChangedEventHandler ConnectProgress;
 
         /// <summary>
         /// Invoked when the INSTEON network is shutting down.
@@ -85,6 +85,7 @@ namespace Insteon.Network
             Connection = connection;
             Controller = new InsteonController(this);
             OnConnected();
+            LastConnectStatus = null;
         }
 
         /// <summary>
@@ -119,10 +120,18 @@ namespace Insteon.Network
         /// </summary>
         /// <param name="refresh">Specifies whether to refresh the list. If called after TryConnectNet with false the list found by TryConnectNet will be returned.</param>
         /// <returns>An array of objects representing each available connection.</returns>
+        /// <remarks>
+        /// This is a blocking operation that accesses the local network.
+        /// Through the progress event, connection status is reported and the operation can be cancelled.
+        /// This method does not throw an exception.
+        /// </remarks>
         public InsteonConnection[] GetAvailableConnections(bool refresh)
         {
             List<InsteonConnection> list = new List<InsteonConnection>();
-            list.AddRange(GetAvailableNetworkConnections(refresh));
+            InsteonConnection[] connections = GetAvailableNetworkConnections(refresh);
+            if (connections == null)
+                return null;
+            list.AddRange(connections);
             list.AddRange(GetAvailableSerialConnections());
             return list.ToArray();
         }
@@ -132,16 +141,37 @@ namespace Insteon.Network
         /// </summary>
         /// <param name="refresh">Specifies whether to refresh the list. If called after TryConnectNet with false the list found by TryConnectNet will be returned.</param>
         /// <returns>An array of objects representing each available network connection.</returns>
+        /// <remarks>
+        /// This is a blocking operation that accesses the local network.
+        /// Through the progress event, connection status is reported and the operation can be cancelled.
+        /// This method does not throw an exception.
+        /// </remarks>
         public InsteonConnection[] GetAvailableNetworkConnections(bool refresh)
         {
             if (connections == null || refresh)
             {
                 connections = new List<InsteonConnection>();
-                List<SmartLincInfo> list = SmartLincFinder.GetRegisteredSmartLincs();
+
+                OnConnectProgress(5, "Retrieving list from smartlinc.smarthome.com..."); // 5% progress
+                if (LastConnectStatus.Cancel)
+                {
+                    connections = null;
+                    return null;
+                }
+                
+                List<SmartLincInfo> list = new List<SmartLincInfo>();
+                list.AddRange(SmartLincFinder.GetRegisteredSmartLincs());
                 foreach (SmartLincInfo item in list)
                 {
+                    OnConnectProgress(40 * list.IndexOf(item) / list.Count + 10, string.Format("Accessing SmartLinc {0} of {1} at {2}", list.IndexOf(item) + 1, list.Count, item.Uri.Host));  // 10% to 50% progress
+                    if (LastConnectStatus.Cancel)
+                    {
+                        connections = null;
+                        return null;
+                    }
+
                     string name = SmartLincFinder.GetSmartLincName(item.Uri.AbsoluteUri);
-                    connections.Add(new InsteonConnection(InsteonConnectionType.Net, item.Uri.Host, name));
+                    connections.Add(new InsteonConnection(InsteonConnectionType.Net, item.Uri.Host, name, item.InsteonAddress));
                 }
             }
             return connections.ToArray();
@@ -151,12 +181,23 @@ namespace Insteon.Network
         /// Returns the available serial connections.
         /// </summary>
         /// <returns>An array of objects representing each available serial connection.</returns>
+        /// <remarks>
+        /// This method does not throw an exception.
+        /// </remarks>
         public InsteonConnection[] GetAvailableSerialConnections()
         {
             List<InsteonConnection> list = new List<InsteonConnection>();
-            string[] ports = SerialPort.GetPortNames();
-            foreach (string port in ports)
-                list.Add(new InsteonConnection(InsteonConnectionType.Serial, port));
+            string[] ports = null;
+            try
+            {
+                ports = SerialPort.GetPortNames();
+            }
+            catch (Win32Exception)
+            {
+            }
+            if (ports != null)
+                foreach (string port in ports)
+                    list.Add(new InsteonConnection(InsteonConnectionType.Serial, port));
             return list.ToArray();
         }
 
@@ -165,19 +206,25 @@ namespace Insteon.Network
         /// </summary>
         public bool IsConnected { get { return Connection != null; } }
 
+        /// <summary>
+        /// Provides the last connect status result.
+        /// </summary>
+        public ConnectProgressChangedEventArgs LastConnectStatus { get; private set; }
+
         private void OnConnected()
         {
             if (Connected != null)
                 Connected(this, EventArgs.Empty);
         }
 
-        private void OnConnectProgress(int progressPercentage)
+        private void OnConnectProgress(int progressPercentage, string status)
         {
+            LastConnectStatus = new ConnectProgressChangedEventArgs(progressPercentage, status);
             if (ConnectProgress != null)
-                ConnectProgress(this, new ProgressChangedEventArgs(progressPercentage, null));
+                ConnectProgress(this, LastConnectStatus);
         }
 
-        private void OnDisconnected()
+        internal void OnDisconnected()
         {
             if (Disconnected != null)
                 Disconnected(this, EventArgs.Empty);
@@ -202,27 +249,33 @@ namespace Insteon.Network
         }
 
         /// <summary>
-        /// Attempts to find an INSTEON controller interface first by using the Smarthome web service to connect over the network, and then by searching the serial ports for a compatible controller device.
+        /// Attempts to locate an INSTEON controller by first searching the Smarthome web service to connect over the network, and then by searching the serial ports for a compatible controller.
+        /// The first successful connection will be returned.
         /// </summary>
         /// <returns>Returns true if a connection was successfully made, or false if unable to find a connection.</returns>
         /// <remarks>
+        /// This is a blocking operation that accesses the local network.
+        /// Through the progress event, connection status is reported and the operation can be cancelled.
+        /// Some devices such as the SmartLinc self-register with the Smarthome web service each time they are powered up.
         /// This method does not throw an exception.
         /// </remarks>
         public bool TryConnect()
-        {          
-            if (TryConnectAll())
-            {
-                Controller = new InsteonController(this);
-                OnConnected();
-                return true;
-            }
-            return false;
+        {
+            InsteonConnection[] connections = GetAvailableConnections(true);
+            if (LastConnectStatus.Cancel || connections == null || connections.Length <= 0)
+                return false;
+
+            foreach (InsteonConnection connection in connections)                
+                Log.WriteLine("Available connection '{0}'", connection.ToString());
+            
+            return TryConnect(connections);
         }
 
         /// <summary>
         /// Connects to an INSTEON network using the specified connection.
         /// </summary>
         /// <param name="connection">Specifies the connection to the INSTEON controller device, which can accessed serially or over the network. Examples: "serial: COM1" or "net: 192.168.2.5".</param>
+        /// <returns>Returns true if a connection was successfully made, or false if unable to find a connection.</returns>
         /// <remarks>
         /// This method does not throw an exception.
         /// </remarks>
@@ -234,72 +287,58 @@ namespace Insteon.Network
             Connection = connection;
             Controller = new InsteonController(this);
             OnConnected();
+            LastConnectStatus = null;
 
             return true;
         }
 
         /// <summary>
-        /// Connects to an INSTEON network using the Smarthome web service. Some devices such as the SmartLinc self-register with this service each time they are powered up.
+        /// Attempts to connect to an INSTEON network by trying each specified connection. The first successful connection will be returned.
         /// </summary>
-        /// <returns>Returns true if a connection is established.</returns>
+        /// <param name="connection">Specifies the list of connections.</param>
+        /// <returns>Returns true if a connection was successfully made, or false if unable to find a connection.</returns>
         /// <remarks>
+        /// This is a blocking operation that accesses the local network.
+        /// Through the progress event, connection status is reported and the operation can be cancelled.
         /// This method does not throw an exception.
         /// </remarks>
-        public bool TryConnectNet()
+        public bool TryConnect(InsteonConnection[] connections)
         {
-            OnConnectProgress(0);
-            List<SmartLincInfo> list = SmartLincFinder.GetRegisteredSmartLincs();
-            OnConnectProgress(10);
-            connections = new List<InsteonConnection>();
-            foreach (SmartLincInfo item in list)
+            if (connections != null)
             {
-                string name = SmartLincFinder.GetSmartLincName(item.Uri.AbsoluteUri);
-                connections.Add(new InsteonConnection(InsteonConnectionType.Net, item.Uri.Host, name));
-                Log.WriteLine("Registered SmartLinc url='{0}' name='{1}' address='{2}'", item.Uri.AbsoluteUri, name, item.InsteonAddress.ToString());
-                OnConnectProgress(90 * list.IndexOf(item) / list.Count + 10);
-            }
-
-            foreach (InsteonConnection connection in connections)
-                if (Messenger.TryConnect(connection))
+                List<InsteonConnection> list = new List<InsteonConnection>();
+                list.AddRange(connections);
+                foreach (InsteonConnection connection in connections)
                 {
-                    this.Connection = connection;
-                    return true;
-                }
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendFormat("Trying connection {0} of {1} on {2}", list.IndexOf(connection) + 1, list.Count, connection.Value);
+                    if (connection.Name != connection.Value)
+                        sb.AppendFormat(" '{0}'", connection.Name);
+                    if (!connection.Address.IsEmpty)
+                        sb.AppendFormat("  ({0})", connection.Address.ToString());
 
-            OnConnectProgress(100);
-            this.Connection = null;
+                    OnConnectProgress(50 * list.IndexOf(connection) / list.Count + 50, sb.ToString()); // 50% to 100% progress
+                    if (LastConnectStatus.Cancel)
+                        return false;
+
+                    if (TryConnect(connection))
+                        return true;
+                }
+            }
             return false;
         }
 
         /// <summary>
-        /// Connects to an INSTEON network using a local serial port.
+        /// Verifies that the connection to the INSTEON network is active.
         /// </summary>
-        /// <returns>Returns true if a connection is established.</returns>
+        /// <returns>Returns true if the connection is verified.</returns>
         /// <remarks>
+        /// If the verification fails the disconnect event will be invoked and false will be returned.
         /// This method does not throw an exception.
         /// </remarks>
-        public bool TryConnectSerial()
+        public bool VerifyConnection()
         {
-            string[] list = SerialPort.GetPortNames();
-            foreach (string item in list)
-            {
-                Connection = new InsteonConnection(InsteonConnectionType.Net, item);
-                if (Messenger.TryConnect(Connection))
-                    return true;
-            }
-
-            Connection = null;
-            return false;
-        }
-
-        private bool TryConnectAll()
-        {
-            if (TryConnectNet())
-                return true;
-            else if (TryConnectSerial())
-                return true;
-            else
-                return false;
+            return Messenger.VerifyConnection();
         }
     }
 }

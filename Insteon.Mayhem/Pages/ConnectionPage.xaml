@@ -10,7 +10,10 @@
              >
     
     <Canvas HorizontalAlignment="Left" Name="canvas1" VerticalAlignment="Top">
-        <TextBlock Canvas.Left="6" Canvas.Top="6" Height="49" Name="CaptionTextBlock" Text="One moment please, searching for an INSTEON controller..." Width="385" TextWrapping="Wrap" />
+        <TextBlock Canvas.Left="12" Canvas.Top="12" Height="21" Name="CaptionTextBlock" Text="One moment please, trying to connect to an INSTEON controller." Width="379" TextWrapping="NoWrap" />
+        <ProgressBar Canvas.Left="12" Canvas.Top="39" Width="379" Height="16" Name="progressBar" Minimum="0" Maximum="100"/>
+        <TextBlock Canvas.Left="12" Canvas.Top="98" Height="23" Name="statusTextBlock" Text="" Width="379" />
+        <Button Canvas.Left="337" Canvas.Top="61" Content="Stop" Height="30" Name="stopButton" Width="54" Click="stopButton_Click" />
     </Canvas>
     
 </UserControl>

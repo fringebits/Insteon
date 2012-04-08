@@ -41,7 +41,7 @@ namespace Insteon.Mayhem
         public InsteonEventConfig(InsteonEventDataItem data)
         {
             this.DataItem = data;
-            this.CanSave = !data.Zero;
+            this.CanSave = !data.IsEmpty;
             InitializeComponent();
         }
 

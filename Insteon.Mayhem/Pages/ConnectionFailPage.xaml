@@ -6,18 +6,19 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
     mc:Ignorable="d" 
     Width="400"
-    Height="200"
-    >
+    Height="300" xmlns:my="clr-namespace:Insteon.Mayhem" Loaded="UserControl_Loaded">
     
     <Canvas HorizontalAlignment="Left" Name="canvas1" VerticalAlignment="Top">
-        <TextBlock Canvas.Left="12" Canvas.Top="12" Height="49" Name="CaptionTextBlock" Text="Sorry, unable to connect to an INSTEON network." Width="382" TextWrapping="Wrap" />
-        <Button Canvas.Left="246" Canvas.Top="55" Content="Try Again" Height="30" Name="RetryButton" Width="142" Click="RetryButton_Click" />
-        <Button Canvas.Left="246" Canvas.Top="100" Content="Connect Manually..." Height="30" Name="ConnectButton" Width="142" Click="ConnectButton_Click" />
-        <TextBlock Canvas.Left="14" Canvas.Top="55" Height="37" Text="To find a SmartLinc on the network the following website must be accessible." Width="215" TextWrapping="Wrap" />
-        <TextBlock Canvas.Left="13" Canvas.Top="91" Height="21" Name="hyperlinkTextBlock" MouseLeftButtonUp="hyperlinkTextBlock_MouseLeftButtonUp" Cursor="Hand" Foreground="Blue">
+        <TextBlock Canvas.Left="59" Canvas.Top="19" Height="38" Name="CaptionTextBlock" Text="Sorry, unable to connect to an INSTEON controller." Width="329" TextWrapping="Wrap" FontWeight="Bold" />
+        <Button Canvas.Left="246" Canvas.Top="72" Content="Try Again" Height="30" Name="RetryButton" Width="142" Click="RetryButton_Click" />
+        <Button Canvas.Left="246" Canvas.Top="117" Content="Connect Manually..." Height="30" Name="ConnectButton" Width="142" Click="ConnectButton_Click" />
+        <TextBlock Canvas.Left="14" Canvas.Top="67" Height="82" Text="To connect to a SmartLinc on the local network the following website must be accessible, and you must be able to successfully access the target SmartLinc configuration page." Width="215" TextWrapping="Wrap" />
+        <TextBlock ToolTip="http://smartlinc.smarthome.com/getinfo.asp" Canvas.Left="14" Canvas.Top="155" Height="21" Name="hyperlinkTextBlock" MouseLeftButtonUp="hyperlinkTextBlock_MouseLeftButtonUp" Cursor="Hand" Foreground="Blue">
             <Underline>smartlinc.smarthome.com</Underline>
         </TextBlock>
-        <TextBlock Canvas.Left="14" Canvas.Top="123" Height="70" Text="To find an INSTEON controller such as a PowerLinc serial interface, it must be plugged into a USB or serial port on your computer." TextWrapping="Wrap" Width="215" />
+        <TextBlock Canvas.Left="14" Canvas.Top="190" Height="54" Text="To connect to an INSTEON controller such as a PowerLinc serial interface, it must be plugged into a USB or serial port on this computer." TextWrapping="Wrap" Width="373" />
+        <TextBlock Canvas.Left="13" Canvas.Top="252" Height="40" Text="If your home is not equipped with any INSTEON home automation products, click the INSTEON logo below for more information." TextWrapping="Wrap" Width="374" />
+        <my:StopIcon Canvas.Left="14" Canvas.Top="12" x:Name="stopIcon1" Height="32" Width="32" />
     </Canvas>
     
 </UserControl>

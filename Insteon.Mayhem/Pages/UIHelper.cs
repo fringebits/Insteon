@@ -27,6 +27,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace Insteon.Mayhem
 {
@@ -42,6 +43,12 @@ namespace Insteon.Mayhem
                 return t;
             else
                 return FindParent<T>(parent);
+        }
+
+        private static Action EmptyDelegate = delegate() { };
+        public static void RefreshElement(UIElement element)
+        {
+            element.Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
         }
     }
 }

@@ -46,15 +46,33 @@
                 <DiscreteObjectKeyFrame KeyTime="0:0:4" Value="{x:Static Visibility.Hidden}"/>
             </ObjectAnimationUsingKeyFrames>
             <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Visibility)" Storyboard.TargetName="step1TextBlock">
-                <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static Visibility.Hidden}"/>
+                <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static Visibility.Visible}"/>
                 <DiscreteObjectKeyFrame KeyTime="0:0:1" Value="{x:Static Visibility.Visible}"/>
-                <DiscreteObjectKeyFrame KeyTime="0:0:4" Value="{x:Static Visibility.Hidden}"/>
+                <DiscreteObjectKeyFrame KeyTime="0:0:1.5" Value="{x:Static Visibility.Visible}"/>
+                <DiscreteObjectKeyFrame KeyTime="0:0:3.5" Value="{x:Static Visibility.Visible}"/>
+                <DiscreteObjectKeyFrame KeyTime="0:0:4" Value="{x:Static Visibility.Visible}"/>
             </ObjectAnimationUsingKeyFrames>
             <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Visibility)" Storyboard.TargetName="step2TextBlock">
-                <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static Visibility.Hidden}"/>
+                <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static Visibility.Visible}"/>
+                <DiscreteObjectKeyFrame KeyTime="0:0:3.5" Value="{x:Static Visibility.Visible}"/>
                 <DiscreteObjectKeyFrame KeyTime="0:0:4" Value="{x:Static Visibility.Visible}"/>
-                <DiscreteObjectKeyFrame KeyTime="0:0:12" Value="{x:Static Visibility.Hidden}"/>
+                <DiscreteObjectKeyFrame KeyTime="0:0:14.6" Value="{x:Static Visibility.Visible}"/>
+                <DiscreteObjectKeyFrame KeyTime="0:0:15" Value="{x:Static Visibility.Visible}"/>
             </ObjectAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Opacity)" Storyboard.TargetName="step1TextBlock">
+            	<EasingDoubleKeyFrame KeyTime="0" Value="0.35"/>
+            	<EasingDoubleKeyFrame KeyTime="0:0:1" Value="0.495"/>
+            	<EasingDoubleKeyFrame KeyTime="0:0:1.5" Value="1"/>
+            	<EasingDoubleKeyFrame KeyTime="0:0:3.5" Value="1"/>
+            	<EasingDoubleKeyFrame KeyTime="0:0:4" Value="0.35"/>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Opacity)" Storyboard.TargetName="step2TextBlock">
+            	<EasingDoubleKeyFrame KeyTime="0" Value="0.35"/>
+            	<EasingDoubleKeyFrame KeyTime="0:0:3.5" Value="0.35"/>
+            	<EasingDoubleKeyFrame KeyTime="0:0:4" Value="1"/>
+            	<EasingDoubleKeyFrame KeyTime="0:0:14.6" Value="1"/>
+            	<EasingDoubleKeyFrame KeyTime="0:0:15" Value="0.35"/>
+            </DoubleAnimationUsingKeyFrames>
         </Storyboard>
     </UserControl.Resources>
     <UserControl.Triggers>

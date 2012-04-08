@@ -16,7 +16,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.ComponentModel;
@@ -50,14 +49,10 @@ namespace Insteon.Mayhem
             if (System.ComponentModel.DesignerProperties.GetIsInDesignMode(this))
                 return;
 
-            foreach (string port in SerialPort.GetPortNames())
-            {
-                ComboBoxItem item = new ComboBoxItem();
-                item.Content = port;
-                serialComboBox.Items.Add(item);
-            }
-            serialRadioButton.IsEnabled = serialComboBox.Items.Count > 0;
-            serialComboBox.IsEnabled = serialComboBox.Items.Count > 0;
+            availableListBox.Items.SortDescriptions.Add(new SortDescription("Content", ListSortDirection.Ascending));
+            AddSerialConnections();
+            if (InsteonService.Network.Connection != null && InsteonService.Network.Connection.Type == InsteonConnectionType.Net)
+                AddNetworkConnection(InsteonService.Network.Connection, true);
 
             worker.DoWork += worker_DoWork;
             worker.RunWorkerCompleted += worker_RunWorkerCompleted;
@@ -66,11 +61,11 @@ namespace Insteon.Mayhem
 
         private void AcceptDialog()
         {
-            if (detectedRadioButton.IsChecked.Value)
+            if (availableRadioButton.IsChecked.Value)
             {
-                if (detectedListBox.SelectedItem != null)
+                if (availableListBox.SelectedItem != null)
                 {
-                    ListBoxItem item = detectedListBox.SelectedItem as ListBoxItem;
+                    ListBoxItem item = availableListBox.SelectedItem as ListBoxItem;
                     if (item != null)
                         SelectedConnection = item.Tag as InsteonConnection;
                 }
@@ -88,12 +83,47 @@ namespace Insteon.Mayhem
             {
                 ComboBoxItem item = serialComboBox.SelectedItem as ComboBoxItem;
                 if (item != null)
-                    SelectedConnection = new InsteonConnection(InsteonConnectionType.Serial, item.Content as string);
+                    SelectedConnection = item.Tag as InsteonConnection;
             }
-
 
             DialogResult = SelectedConnection != null;
             Close();
+        }
+
+        private void AddNetworkConnection(InsteonConnection connection, bool select)
+        {
+            ListBoxItem item = new ListBoxItem();
+            item.Content = connection.Name;
+            item.ToolTip = InsteonService.GetConnectionInfo(connection);
+            item.Tag = connection;
+            availableListBox.Items.Add(item);
+            if (select)
+            {
+                item.IsSelected = true;
+                availableListBox.Focus();
+            }
+        }
+
+        private void AddSerialConnections()
+        {
+            InsteonConnection[] connections = InsteonService.Network.GetAvailableSerialConnections();
+            foreach (InsteonConnection connection in connections)
+            {
+                serialRadioButton.IsEnabled = true;
+                ComboBoxItem item = new ComboBoxItem();
+                item.Content = connection.Name;
+                item.Tag = connection;
+                serialComboBox.Items.Add(item);
+                if (connection.Equals(InsteonService.Network.Connection))
+                {
+                    item.IsSelected = true;
+                    serialRadioButton.IsChecked = true;
+                }
+                else if (serialComboBox.Items.Count == 1)
+                {
+                    item.IsSelected = true;
+                }
+            }
         }
 
         private void connectButton_Click(object sender, RoutedEventArgs e)
@@ -103,7 +133,8 @@ namespace Insteon.Mayhem
 
         private void connectionsListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            AcceptDialog();
+            if (availableListBox.SelectedItem != null) 
+                AcceptDialog();
         }
 
         void worker_DoWork(object sender, DoWorkEventArgs e)
@@ -118,43 +149,40 @@ namespace Insteon.Mayhem
             if (availableConnections.Length > 0)
             {
                 foreach (InsteonConnection connection in availableConnections)
-                {
-                    ListBoxItem item = new ListBoxItem();
-                    item.Content = connection.Name;
-                    if (connection.Name != connection.Value)                            
-                        item.ToolTip = connection.Value;
-                    item.Tag = connection;
-                    detectedListBox.Items.Add(item);
-                }
-                connectButton.IsEnabled = detectedRadioButton.IsChecked.Value;
+                    if (InsteonService.Network.Connection == null || !InsteonService.Network.Connection.Equals(connection)) // active connection already added to list on load
+                        AddNetworkConnection(connection, false);
+                
+                connectButton.IsEnabled = availableRadioButton.IsChecked.Value;
             }
         }
 
         private void detectedRadioButton_Checked(object sender, RoutedEventArgs e)
         {
-            if (detectedListBox == null)
+            if (availableListBox == null)
                 return;
-            connectButton.IsEnabled = detectedListBox.Items.Count > 0;
-            detectedListBox.IsEnabled = true;
+            connectButton.IsEnabled = availableListBox.Items.Count > 0;
+            availableListBox.IsEnabled = true;
             networkTextBox.IsEnabled = false;
             serialComboBox.IsEnabled = false;
+            availableListBox.Focus();
         }
 
         private void networkRadioButton_Checked(object sender, RoutedEventArgs e)
         {
             connectButton.IsEnabled = true;
-            detectedListBox.IsEnabled = false;
+            availableListBox.IsEnabled = false;
             networkTextBox.IsEnabled = true;
-            serialComboBox.IsEnabled = false;            
+            serialComboBox.IsEnabled = false;
+            networkTextBox.Focus();
         }
 
         private void serialRadioButton_Checked(object sender, RoutedEventArgs e)
         {
             connectButton.IsEnabled = true;
-            detectedListBox.IsEnabled = false;
+            availableListBox.IsEnabled = false;
             networkTextBox.IsEnabled = false;
             serialComboBox.IsEnabled = true;
-            serialComboBox.SelectedIndex = 0;
+            serialComboBox.Focus();
         }
     }
 }

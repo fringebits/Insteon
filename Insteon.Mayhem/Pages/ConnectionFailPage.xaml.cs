@@ -38,13 +38,33 @@ namespace Insteon.Mayhem
             InitializeComponent();
         }
 
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (System.ComponentModel.DesignerProperties.GetIsInDesignMode(this))
+                return;
+
+            if (InsteonService.SpecificConnection != null)
+            {
+                StringBuilder sb = new StringBuilder();
+                if (InsteonService.SpecificConnection.Name == InsteonService.SpecificConnection.Value)
+                    sb.AppendFormat("Sorry, unable to connect to '{0}'", InsteonService.SpecificConnection.Name);
+                else
+                    sb.AppendFormat("Sorry, unable to connect to '{0}' at '{1}'", InsteonService.SpecificConnection.Name, InsteonService.SpecificConnection.Value);
+                if (!InsteonService.SpecificConnection.Address.IsEmpty)
+                    sb.AppendFormat("  ({0})", InsteonService.SpecificConnection.Address.ToString());
+                CaptionTextBlock.Text = sb.ToString();
+            }
+
+            PageFrame frame = UIHelper.FindParent<PageFrame>(this);
+            if (frame != null)
+                frame.StatusControlsVisible = false;
+        }
+
         private void RetryButton_Click(object sender, RoutedEventArgs e)
         {
-            Panel parent = this.VisualParent as Panel;
-            parent.Children.Remove(this);
-            UserControl page = new ConnectionPage();
-            parent.Children.Add(page);
-            parent.Height = page.Height;
+            PageFrame frame = UIHelper.FindParent<PageFrame>(this);
+            if (frame != null)
+                frame.SetPage(new ConnectionPage());
         }
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -55,7 +75,7 @@ namespace Insteon.Mayhem
 
         private void hyperlinkTextBlock_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            Process.Start("http://smartlinc.smarthome.com/getinfo.asp");
+            Process.Start(hyperlinkTextBlock.ToolTip as string);
         }
     }
 }

@@ -58,29 +58,32 @@ namespace Insteon.Mayhem
 
         private void EnterLinkMode()
         {
-            InsteonReactionConfig config = UIHelper.FindParent<InsteonReactionConfig>(this);
-            try
+            byte group = 0;
+            string message = null;
+            if (!InsteonService.TryGetAvailableGroup(out group, out message))
             {
-                config.DataItem.Group = InsteonService.GetAvailableGroup();
-            }
-            catch (OutOfMemoryException)
-            {
-                captionTextBlock.Text = "Sorry, no more devices can be added.\r\n\r\nIf there is another event or reaction that may no longer be needed, remove it and try again.";
-                captionTextBlock.Visibility = Visibility.Visible;
-                animation.Visibility = Visibility.Hidden;
+                SetError(message);
                 return;
             }
 
+            InsteonReactionConfig config = UIHelper.FindParent<InsteonReactionConfig>(this);
+            config.DataItem.Group = group;
+
             if (!InsteonService.Network.Controller.TryEnterLinkMode(InsteonLinkMode.Controller, config.DataItem.Group))
             {
-                captionTextBlock.Text = "Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller and plugging it back in.";
-                captionTextBlock.Visibility = Visibility.Visible;
-                animation.Visibility = Visibility.Hidden;
+                SetError("Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.");
                 return;
             }
 
             InsteonService.Network.Controller.DeviceLinked += PlmDevice_DeviceLinked;
             InsteonService.Network.Controller.DeviceLinkTimeout += PlmDevice_DeviceLinkTimeout;
+        }
+
+        private void SetError(string message)
+        {
+            captionTextBlock.Text = message;
+            captionTextBlock.Visibility = Visibility.Visible;
+            animation.Visibility = Visibility.Hidden;            
         }
 
         private void OnDeviceLinked(string address)
@@ -93,11 +96,9 @@ namespace Insteon.Mayhem
             config.DataItem.DeviceStatus = InsteonDeviceStatus.On;
             config.CanSave = true;
 
-            Panel parent = this.VisualParent as Panel;
-            parent.Children.Remove(this);
-            UserControl page = new ManageReactionPage();
-            parent.Children.Add(page);
-            parent.Height = page.Height;
+            PageFrame frame = UIHelper.FindParent<PageFrame>(this);
+            if (frame != null)
+                frame.SetPage(new ManageReactionPage());
         }
 
         void OnDeviceLinkTimeout()

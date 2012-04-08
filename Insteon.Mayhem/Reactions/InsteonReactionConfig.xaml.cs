@@ -35,7 +35,7 @@ namespace Insteon.Mayhem
         public InsteonReactionConfig(InsteonReactionDataItem data)
         {
             this.DataItem = data;
-            this.CanSave = !data.Zero;
+            this.CanSave = !data.IsEmpty;
             InitializeComponent();
         }
 

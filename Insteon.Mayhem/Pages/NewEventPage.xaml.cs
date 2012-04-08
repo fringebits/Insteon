@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Text;
 using System.Timers;
 using System.Windows;
@@ -43,28 +44,34 @@ namespace Insteon.Mayhem
 
         private void AddButton_Click(object sender, RoutedEventArgs e)
         {
-            InsteonEventConfig config = UIHelper.FindParent<InsteonEventConfig>(this);
-            try
+            Window window = Window.GetWindow(this);
+            window.Cursor = Cursors.AppStarting;
+            byte group = 0;
+            string message = null;
+            if (!InsteonService.TryGetAvailableGroup(out group, out message))
             {
-                config.DataItem.Group = InsteonService.GetAvailableGroup();
-            }
-            catch (OutOfMemoryException)
-            {
-                captionTextBlock.Text = "Sorry, no more devices can be added.\r\n\r\nIf there is another event or reaction that may no longer be needed, remove it and try again.";
-                captionTextBlock.Visibility = Visibility.Visible;
-                animation.Visibility = Visibility.Hidden;
-                addButton.Visibility = Visibility.Hidden;
+                SetError(message);
+                window.Cursor = Cursors.Arrow;
                 return;
             }
+            else
+            {
+                PageFrame frame = UIHelper.FindParent<PageFrame>(this);
+                if (frame != null)
+                    frame.UpdateStatus();
+            }
+
+            InsteonEventConfig config = UIHelper.FindParent<InsteonEventConfig>(this);
+            config.DataItem.Group = group;
 
             if (!InsteonService.Network.Controller.TryEnterLinkMode(InsteonLinkMode.Responder, config.DataItem.Group))
             {
-                captionTextBlock.Text = "Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller and plugging it back in.";
-                captionTextBlock.Visibility = Visibility.Visible;
-                animation.Visibility = Visibility.Hidden;
-                addButton.Visibility = Visibility.Hidden;
+                SetError("Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.");
+                window.Cursor = Cursors.Arrow;
                 return;
             }
+            window.Cursor = Cursors.Arrow;
+
             InsteonService.Network.Controller.DeviceLinked += PlmDevice_DeviceLinked;
             
             timeout = new Timer(1000);
@@ -73,7 +80,16 @@ namespace Insteon.Mayhem
             timeout.Start();
         }
 
-        void timeout_Elapsed(object sender, ElapsedEventArgs e)
+        private void SetError(string message)
+        {
+            captionTextBlock.Text = message;
+            captionTextBlock.Visibility = Visibility.Visible;
+            animation.Visibility = Visibility.Hidden;
+            addButton.Visibility = Visibility.Hidden;
+            helpTextBlock.Visibility = Visibility.Hidden;
+        }
+
+        private void timeout_Elapsed(object sender, ElapsedEventArgs e)
         {
             timeout.Stop();
             InsteonService.Network.Controller.DeviceLinked -= PlmDevice_DeviceLinked;
@@ -92,11 +108,9 @@ namespace Insteon.Mayhem
             config.DataItem.DeviceStatus = InsteonDeviceStatus.On;
             config.CanSave = true;
 
-            Panel parent = this.VisualParent as Panel;
-            parent.Children.Remove(this);
-            UserControl page = new ManageEventPage();
-            parent.Children.Add(page);
-            parent.Height = page.Height;
+            PageFrame frame = UIHelper.FindParent<PageFrame>(this);
+            if (frame != null)
+                frame.SetPage(new ManageEventPage());
         }
 
         private void PlmDevice_DeviceLinked(object sender, InsteonDeviceEventArgs data)

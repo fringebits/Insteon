@@ -15,14 +15,14 @@
         <Label Canvas.Left="235" Canvas.Top="41" Content="Device:" Height="29" HorizontalContentAlignment="Left" />
         <TextBlock Canvas.Left="289" Canvas.Top="46" Height="18" Name="deviceTextBlock" Width="80" />
         <Label Canvas.Left="235" Canvas.Top="71" Content="Change reaction:" Height="29" Name="label1" Width="110" HorizontalContentAlignment="Left" />
-        <ComboBox Canvas.Left="239" Canvas.Top="96" Height="26" Name="deviceStateComboBox" Width="149" ItemsSource="{Binding}" Text="On" SelectedIndex="0" SelectionChanged="deviceStateComboBox_SelectionChanged">
+        <ComboBox Canvas.Left="239" Canvas.Top="99" Height="26" Name="deviceStateComboBox" Width="149" ItemsSource="{Binding}" Text="On" SelectedIndex="0" SelectionChanged="deviceStateComboBox_SelectionChanged">
             <ComboBoxItem Content="Unknown" Visibility="Collapsed" />
             <ComboBoxItem Content="On" />
             <ComboBoxItem Content="Off" />
-            <ComboBoxItem Content="Fast On (Double Tap)" />
-            <ComboBoxItem Content="Fast Off (Double Tap)" />
-            <ComboBoxItem Content="Brightened" />
-            <ComboBoxItem Content="Dimmed" />
+            <ComboBoxItem Content="Fast On" />
+            <ComboBoxItem Content="Fast Off" />
+            <ComboBoxItem Content="Brighten" />
+            <ComboBoxItem Content="Dim" />
         </ComboBox>
     </Canvas>
 

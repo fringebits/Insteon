@@ -44,6 +44,16 @@ namespace Insteon.Network
             this.messageProcessor = messageProcessor;
         }
 
+        public void Close()
+        {
+            if (port != null)
+            {
+                port.SetNotify(null);
+                port.Close();
+                port = null;
+            }
+        }
+
         public Dictionary<PropertyKey, int> Connect(InsteonConnection connection)
         {
             if (port != null)
@@ -117,73 +127,83 @@ namespace Insteon.Network
             return properties;
         }
 
-        public void Close()
+        private void DataAvailable()
         {
-            if (port != null)
-            {
-                port.SetNotify(null);
-                port.Close();
-                port = null;
-            }
+            ProcessData();
         }
 
-        public EchoStatus Send(byte[] message, bool retryOnNak)
-        {
-            if (port == null)
-                throw new InvalidOperationException();
+        public bool IsConnected { get { return port != null; } }
 
-            port.SetNotify(null);
-            EchoStatus status = EchoStatus.Unknown;
-            try
-            {
-                ProcessData(); // process any pending data before sending a new command
-
-                byte[] input = new byte[message.Length + 1];
-                input[0] = 0x02;
-                message.CopyTo(input, 1);
-
-                int retry = -1;
-                while (retry++ <= Constants.retryCount)
-                {
-                    if (retry <= 0)
-                        Log.WriteLine("TX: {0}", Utilities.ByteArrayToString(input));
-                    else
-                        Log.WriteLine("TX: {0} - RETRY {1} of {2}", Utilities.ByteArrayToString(input), retry, Constants.retryCount);
-                    port.Write(input);
-                    status = ProcessEcho();
-                    if (status == EchoStatus.ACK)
-                        return status;
-                    if (status == EchoStatus.NAK && !retryOnNak)
-                        return status;
-                }
-
-                Log.WriteLine("Send failed after {0} retries", Constants.retryCount);
-                return status;
-            }
-            finally
-            {
-                port.SetNotify(DataAvailable);
-            }
-        }
-
-        private EchoStatus ProcessEcho()
+        private void ProcessData()
         {
             if (port == null || messageProcessor == null)
                 throw new InvalidOperationException();
 
-            byte[] data = port.ReadAll();
+            byte[] data = ReadData(10); // always try to get at least 10 bytes
+            if (data.Length > 0)
+                Log.WriteLine("RX: {0}", Utilities.ByteArrayToString(data));
 
-            int retryCount = 0;
-            while (data.Length == 0 && retryCount <= Constants.retryCount)
+            lock (buffer)
             {
-                Thread.Sleep(Constants.retryTime);
-                data = port.ReadAll();
+                if (data.Length > 0)
+                    buffer.AddRange(data);
+                data = buffer.ToArray();
+                buffer.Clear();
             }
 
+            if (data.Length > 0)
+            {
+                int count = 0;
+                int offset = 0;
+                int last = 0;
+                while (offset < data.Length)
+                {
+                    if (data[offset++] == 0x02)
+                    {
+                        if (last != offset - 1)
+                            Log.WriteLine("SKIPPING {0} BYTES TO: {1}", offset - last, Utilities.ByteArrayToString(data, offset - 1));
+                        int retry = 0;
+                        while (++retry < Constants.retryCount)
+                        {
+                            if (messageProcessor.ProcessMessage(data, offset, out count))
+                            {
+                                offset += count;
+                                last = offset;
+                                break;
+                            }
+                            else
+                            {
+                                byte[] more = ReadData(0);
+                                if (more.Length > 0)
+                                {
+                                    List<byte> list = new List<byte>(data);
+                                    list.AddRange(more);
+                                    data = list.ToArray();
+                                    Log.WriteLine("RX: {0} - RETRY {1} of {2} - got more data", Utilities.ByteArrayToString(data), retry, Constants.retryCount);
+                                }
+                                else
+                                {
+                                    Log.WriteLine("RX: {0} - RETRY {1} of {2} - waiting for more data", Utilities.ByteArrayToString(data), retry, Constants.retryCount);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (last != offset)
+                    Log.WriteLine("DISCARDING {0} BYTES: {1}", offset - last, Utilities.ByteArrayToString(data, last));
+            }
+        }
+
+        private EchoStatus ProcessEcho(int echoLength)
+        {
+            if (port == null || messageProcessor == null)
+                throw new InvalidOperationException();
+
+            byte[] data = ReadData(echoLength);
             if (data.Length == 0)
             {
                 Log.WriteLine("ERROR: No data read from port");
-                return EchoStatus.Unknown;
+                return EchoStatus.None;
             }
 
             int offset = 0;
@@ -241,70 +261,70 @@ namespace Insteon.Network
             }
         }
 
-        private void ProcessData()
+        private byte[] ReadData(int minimum)
         {
-            if (port == null || messageProcessor == null)
-                throw new InvalidOperationException();
-
+            List<byte> list = new List<byte>();
             byte[] data = port.ReadAll();
-            if (data.Length > 0)
-                Log.WriteLine("RX: {0}", Utilities.ByteArrayToString(data));
+            list.AddRange(data);
 
-            lock (buffer)
+            int retryCount = 0;
+            while (list.Count == 0 && ++retryCount <= Constants.retryCount)
             {
-                if (data.Length > 0)
-                    buffer.AddRange(data);
-                data = buffer.ToArray();
-                buffer.Clear();
+                port.Wait(Constants.retryTime);
+                data = port.ReadAll();
+                list.AddRange(data);
             }
 
-            if (data.Length > 0)
+            if (list.Count < minimum)
             {
-                int count = 0;
-                int offset = 0;
-                int last = 0;
-                while (offset < data.Length)
+                do
                 {
-                    if (data[offset++] == 0x02)
-                    {
-                        if (last != offset - 1)
-                            Log.WriteLine("SKIPPING {0} BYTES TO: {1}", offset - last, Utilities.ByteArrayToString(data, offset - 1));
-                        int retry = 0;
-                        while (++retry < Constants.retryCount)
-                        {
-                            if (messageProcessor.ProcessMessage(data, offset, out count))
-                            {
-                                offset += count;
-                                last = offset;
-                                break;
-                            }
-                            else
-                            {
-                                Thread.Sleep(Constants.retryTime);
-                                byte[] more = port.ReadAll();
-                                if (more.Length > 0)
-                                {
-                                    List<byte> list = new List<byte>(data);
-                                    list.AddRange(more);
-                                    data = list.ToArray();
-                                    Log.WriteLine("RX: {0} - RETRY {1} of {2} - got more data", Utilities.ByteArrayToString(data), retry, Constants.retryCount);
-                                }
-                                else
-                                {
-                                    Log.WriteLine("RX: {0} - RETRY {1} of {2} - waiting for more data", Utilities.ByteArrayToString(data), retry, Constants.retryCount);
-                                }
-                            }
-                        }
-                    }
-                }
-                if (last != offset)
-                    Log.WriteLine("DISCARDING {0} BYTES: {1}", offset - last, Utilities.ByteArrayToString(data, last));
+                    port.Wait(Constants.readTime);
+                    data = port.ReadAll();
+                    list.AddRange(data);
+                } while (data.Length > 0);
             }
+                
+            return list.ToArray();
         }
 
-        private void DataAvailable()
+        public EchoStatus Send(byte[] message, bool retryOnNak, int echoLength)
         {
-            ProcessData();
+            if (port == null)
+                throw new InvalidOperationException();
+
+            port.SetNotify(null);
+            EchoStatus status = EchoStatus.None;
+            try
+            {
+                ProcessData(); // process any pending data before sending a new command
+
+                byte[] input = new byte[message.Length + 1];
+                input[0] = 0x02;
+                message.CopyTo(input, 1);
+
+                int retry = -1;
+                while (retry++ < Constants.retryCount)
+                {
+                    if (retry <= 0)
+                        Log.WriteLine("TX: {0}", Utilities.ByteArrayToString(input));
+                    else
+                        Log.WriteLine("TX: {0} - RETRY {1} of {2}", Utilities.ByteArrayToString(input), retry, Constants.retryCount);
+                    port.Write(input);
+                    status = ProcessEcho(echoLength + 2); // +1 for leading 02 byte, +1 for trailing ACK/NAK byte
+                    if (status == EchoStatus.ACK)
+                        return status;
+                    if (status == EchoStatus.NAK && !retryOnNak)
+                        return status;
+                }
+
+                Log.WriteLine("Send failed after {0} retries", Constants.retryCount);
+                return status;
+            }
+            finally
+            {
+                port.SetNotify(DataAvailable);
+            }
         }
 
         void IDisposable.Dispose()

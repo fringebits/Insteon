@@ -76,6 +76,11 @@ namespace Insteon.Network
         }
 
         /// <summary>
+        /// Gets a value indicating whether this InsteonAddress is empty.
+        /// </summary>
+        public bool IsEmpty { get { return value == 0; } }
+
+        /// <summary>
         /// Converts the string representation of an INSTEON address to its numeric equivalent.
         /// </summary>
         /// <param name="value">A string specifying the INSTEON address, example: "19.9E.4A".</param>
@@ -128,13 +133,7 @@ namespace Insteon.Network
         /// <summary>
         /// Returns the integer representation of the INSTEON address.
         /// </summary>
-        public int Value
-        {
-            get
-            {
-                return value;
-            }
-        }
+        public int Value { get { return value; } }
     }
 
 }

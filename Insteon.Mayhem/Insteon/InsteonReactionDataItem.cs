@@ -27,7 +27,7 @@ namespace Insteon.Mayhem
         public string Device { get; set; }
         public InsteonDeviceStatus DeviceStatus { get; set; }
         public byte Group { get; set; }
-        public bool Zero { get { return Group == 0; } }
+        public bool IsEmpty { get { return Group == 0 || string.IsNullOrWhiteSpace(Device); } }
         public override string ToString()
         {
             return string.Format("{0} {1}", Device, DeviceStatus.ToString());

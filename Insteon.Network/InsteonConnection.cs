@@ -16,7 +16,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Insteon.Network
 {
@@ -25,6 +27,24 @@ namespace Insteon.Network
     /// </summary>
     public class InsteonConnection
     {
+        /// <summary>
+        /// The INSTEON address of the controller device.
+        /// </summary>
+        public InsteonAddress Address { get; private set; }
+
+        /// <summary>
+        /// Determines whether this connection is the same as the specified connection.
+        /// </summary>
+        /// <param name="other">The specified other connection object.</param>
+        /// <returns>Returns true if this connection is the same as the other connection.</returns>
+        public bool Equals(InsteonConnection other)
+        {
+            if (other != null)
+                return Type == other.Type && string.Equals(Value, other.Value, StringComparison.InvariantCultureIgnoreCase);
+            else
+                return false;
+        }
+
         /// <summary>
         /// The display name for the connection string.
         /// </summary>
@@ -46,7 +66,7 @@ namespace Insteon.Network
         /// <param name="type">Type type of connection.</param>
         /// <param name="value">The connection value.</param>
         public InsteonConnection(InsteonConnectionType type, string value)
-        : this(type, value, value)
+        : this(type, value, value, new InsteonAddress())
         {
         }
 
@@ -55,15 +75,20 @@ namespace Insteon.Network
         /// </summary>
         /// <param name="type">Type type of connection.</param>
         /// <param name="value">The connection value.</param>
-        /// <param name="Name">The display name for the connection string.</param>
-        public InsteonConnection(InsteonConnectionType type, string value, string name)
+        /// <param name="name">The display name for the connection string.</param>
+        /// <param name="address">The INSTEON address of the controller device.</param>
+        public InsteonConnection(InsteonConnectionType type, string value, string name, InsteonAddress address)
         {
+            if (string.IsNullOrEmpty(value))
+                throw new ArgumentNullException();
+
             this.Type = type;
-            this.Value = value;
+            this.Value = value.Trim();
             if (!string.IsNullOrEmpty(name) && name.Trim().Length > 0)
-                this.Name = name;
+                this.Name = name.Trim();
             else
                 this.Name = value;
+            this.Address = address;
         }
 
         /// <summary>
@@ -76,27 +101,25 @@ namespace Insteon.Network
             if (string.IsNullOrEmpty(text))
                 throw new ArgumentNullException();
 
-            int i = text.IndexOf(':');
-            int j = text.IndexOf(',');
-
-            InsteonConnectionType type;
-            string typeValue = text.Substring(0, i).Trim();
-            if (string.Equals(typeValue, "Net", StringComparison.InvariantCultureIgnoreCase))
-                type = InsteonConnectionType.Net;
-            else if (string.Equals(typeValue, "Serial", StringComparison.InvariantCultureIgnoreCase))
-                type = InsteonConnectionType.Serial;
-            else
+            Regex connectionPattern = new Regex(@"\s*(?<type>[^: ]+)\s*:\s*(?<value>[^, ]+)\s*(,\s*(?<name>[^,]+)\s*)?(,\s*(?<address>[^, ]+))?");
+            Match m = connectionPattern.Match(text);
+            if (!m.Success)
                 throw new FormatException();
 
-            string value = (j >= 0) ? text.Substring(i + 1, j - i - 1).Trim() : text.Substring(i + 1).Trim();
-            if (string.IsNullOrEmpty(value))
+            string type = m.Groups["type"].ToString().Trim();
+            string value = m.Groups["value"].ToString().Trim();
+            string name = m.Groups["name"].ToString().Trim();
+            string address = m.Groups["address"].ToString().Trim();
+
+            if (string.IsNullOrEmpty(type) || string.IsNullOrEmpty(value))
                 throw new FormatException();
 
-            string name = (j >= 0 && j < text.Length) ? text.Substring(j + 1).Trim() : value;
-            if (string.IsNullOrEmpty(name))            
-                return new InsteonConnection(type, value);
-            else
-                return new InsteonConnection(type, value, name);
+            type = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(type);
+            
+            InsteonConnectionType rtype = (InsteonConnectionType)Enum.Parse(typeof(InsteonConnectionType), type);
+            InsteonAddress raddress = !string.IsNullOrEmpty(address) ? InsteonAddress.Parse(address) : new InsteonAddress();
+
+            return new InsteonConnection(rtype, value, name, raddress);
         }
 
         /// <summary>
@@ -124,12 +147,18 @@ namespace Insteon.Network
             }
         }
 
+        /// <summary>
+        /// Converts this instance to its equivalent string representation.
+        /// </summary>
         public override string ToString()
         {
-            if (string.IsNullOrEmpty(Name) || string.Equals(Name, Value, StringComparison.InvariantCulture))
+            string name = (Name != Value) ? Name : string.Empty;
+            if (string.IsNullOrEmpty(name) && Address.IsEmpty)
                 return string.Format("{0}: {1}", Type, Value);
+            else if (Address.IsEmpty)
+                return string.Format("{0}: {1}, {2}", Type, Value, name);
             else
-                return string.Format("{0}: {1}, {2}", Type, Value, Name);
+                return string.Format("{0}: {1}, {2}, {3}", Type, Value, name, Address.ToString());
         }
     }
 }

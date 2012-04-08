@@ -33,7 +33,7 @@ namespace Insteon.Mayhem
         private static AutoResetEvent wait = new AutoResetEvent(false);
 
         public static InsteonNetwork Network { get; private set; }
-        public static InsteonConnection Connection { get; set; }
+        public static InsteonConnection SpecificConnection { get; set; }
         public static bool Connecting { get; private set; }
 
         static InsteonService()
@@ -77,9 +77,9 @@ namespace Insteon.Mayhem
                         string text = r.ReadToEnd().Trim();
                         InsteonConnection connection;
                         if (InsteonConnection.TryParse(text, out connection))
-                            Connection = connection;
+                            SpecificConnection = connection;
                         else
-                            Connection = null;                        
+                            SpecificConnection = null;                        
                     }
             }
             catch (IOException)
@@ -99,18 +99,49 @@ namespace Insteon.Mayhem
             if (!Network.IsConnected && !Connecting)
             {
                 Connecting = true;
-                ThreadPool.QueueUserWorkItem(ConnectThreadProc);
+                ThreadPool.QueueUserWorkItem(ConnectThreadProc, null);
             }
+        }
+
+        public static void StartNetwork(InsteonConnection connection)
+        {
+            Connecting = true;
+            ThreadPool.QueueUserWorkItem(ConnectThreadProc, connection);
+        }
+
+        public static string GetConnectionInfo(InsteonConnection connection)
+        {
+            StringBuilder sb = new StringBuilder();
+            if (connection.Type == InsteonConnectionType.Net && connection.Name != connection.Value)
+                sb.AppendFormat("Network Address: {0}", connection.Value);
+            if (!connection.Address.IsEmpty)
+            {
+                if (sb.Length > 0)
+                    sb.Append(", ");
+                sb.AppendFormat("INSTEON Address: {0}", connection.Address.ToString());
+            }
+            if (sb.Length > 0)
+                return sb.ToString();
+            else
+                return null;
         }
 
         private static void ConnectThreadProc(object obj)
         {
-            if (Connection == null)
+            InsteonConnection connection = obj as InsteonConnection;
+            if (connection != null)
+            {
+                SpecificConnection = connection;
+                if (!connection.Equals(Network.Connection))
+                    Network.Close();
+            }
+
+            if (SpecificConnection == null)
                 LoadSettings();
 
-            if (Connection != null)
+            if (SpecificConnection != null)
             {                
-                Network.TryConnect(Connection);
+                Network.TryConnect(SpecificConnection);
             }
             else
             {
@@ -130,18 +161,37 @@ namespace Insteon.Mayhem
                 ConnectionFailed(null, EventArgs.Empty);
         }
 
-        public static byte GetAvailableGroup()
+        public static bool TryGetAvailableGroup(out byte group, out string message)
         {
+            group = 0;
+            message = null;
+
             if (Network == null || !Network.IsConnected)
-                throw new InvalidOperationException();
+            {
+                message = "Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.";
+                return false;
+            }
+            
+            InsteonDeviceLinkRecord[] links;
+            if (!Network.Controller.TryGetLinks(out links))
+            {
+                message = "Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.";
+                return false;
+            }
+
             bool[] used = new bool[256];
-            InsteonDeviceLinkRecord[] links = Network.Controller.GetLinks();
             foreach (InsteonDeviceLinkRecord link in links)
                 used[link.Group] = true;
+            
             for (byte i = 255; i > 0; --i)
                 if (!used[i])
-                    return i;
-            throw new OutOfMemoryException();
+                {
+                    group = i;
+                    return true;
+                }
+            
+            message = "Sorry, no more devices can be added.\r\n\r\nIf there is another event or reaction that may no longer be needed, remove it and try again.";
+            return false;
         }
 
 

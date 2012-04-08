@@ -24,7 +24,7 @@ using Insteon.Network;
 namespace Insteon.Mayhem
 {
     [DataContract]
-    [MayhemModule("INSTEON Command", "Turns an INSTEON device on or off")]
+    [MayhemModule("INSTEON Command", "Sends a command to an INSTEON device to turn it on or off or set the dim level")]
     public class InsteonReaction : ReactionBase, IWpfConfigurable
     {
         [DataMember]
