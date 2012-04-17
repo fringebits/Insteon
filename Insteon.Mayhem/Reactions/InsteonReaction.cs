@@ -24,7 +24,7 @@ using Insteon.Network;
 namespace Insteon.Mayhem
 {
     [DataContract]
-    [MayhemModule("INSTEON Command", "Sends a command to an INSTEON device to turn it on or off or set the dim level")]
+    [MayhemModule("INSTEON Command", "Sends a command to an INSTEON device")]
     public class InsteonReaction : ReactionBase, IWpfConfigurable
     {
         [DataMember]
@@ -37,26 +37,27 @@ namespace Insteon.Mayhem
         {
             get { return new InsteonReactionConfig(data); }
         }
+        public string GetConfigString()
+        {
+            return data.ToString();
+        }
         public void OnSaved(WpfConfiguration control)
         {
             InsteonReactionConfig config = control as InsteonReactionConfig;
             data = config.DataItem;
         }
-        protected override void OnLoadDefaults()
-        {
-            InsteonService.StartNetwork();
-        }
-        protected override void OnAfterLoad()
-        {
-            InsteonService.StartNetwork();
-        }
         protected override void OnDeleted()
         {
             InsteonService.UnlinkDevice(data.Group, data.Device);
         }
-        public string GetConfigString()
+        protected override void OnEnabling(EnablingEventArgs e)
         {
-            return data.ToString();
+            if (!InsteonService.VerifyConnection())
+            {
+                ErrorLog.AddError(ErrorType.Failure, string.Format("Unable to connect to INSTEON network. {0}", InsteonService.SpecificConnection != null ? InsteonService.SpecificConnection.ToString() : string.Empty));
+                e.Cancel = true;
+                return;
+            }
         }
         public override void Perform()
         {
@@ -88,7 +89,7 @@ namespace Insteon.Mayhem
                         return;
                 }
                 if (!InsteonService.Network.Controller.TryGroupCommand(command, data.Group))
-                    ErrorLog.AddError(ErrorType.Failure, string.Format("Could not issue INSTEON command {0} to group {1}, device {2} due to a problem communicating with the INSTEON controller.", command.ToString(), data.Group, data.Device));
+                    ErrorLog.AddError(ErrorType.Failure, string.Format("Could not send INSTEON command {0} to device {1} (group {2}) due to a problem communicating with the INSTEON controller.", command.ToString(), data.Device, data.Group));
             }
         }
     }

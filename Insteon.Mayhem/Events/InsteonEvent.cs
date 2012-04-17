@@ -42,55 +42,51 @@ namespace Insteon.Mayhem
         {
             get { return new InsteonEventConfig(data); }
         }
+        public string GetConfigString()
+        {
+            return data.ToString();
+        }
         public void OnSaved(WpfConfiguration control)
         {
             InsteonEventConfig config = control as InsteonEventConfig;
             data = config.DataItem;
         }
-        public string GetConfigString()
-        {
-            return data.ToString();
-        }
-        protected override void OnLoadDefaults()
-        {
-            InsteonService.StartNetwork();
-        }
-        protected override void OnAfterLoad()
-        {
-            InsteonService.StartNetwork();
-        }
         protected override void OnDeleted()
         {
             InsteonService.UnlinkDevice(data.Group, data.Device);
-        }
+        }        
         protected override void OnEnabling(EnablingEventArgs e)
         {
             InsteonAddress address;
-            if (InsteonAddress.TryParse(data.Device, out address))
+            if (!InsteonAddress.TryParse(data.Device, out address))
             {
-                InsteonService.WaitUntilConnected();
-                if (InsteonService.Network.IsConnected)
-                {
-                    if (!InsteonService.Network.Devices.ContainsKey(address))
-                        device = InsteonService.Network.Devices.Add(address, new InsteonIdentity());
-
-                    device = InsteonService.Network.Devices.Find(address);
-                    device.DeviceStatusChanged += device_DeviceStatusChanged;
-                    return;
-                }
+                ErrorLog.AddError(ErrorType.Failure, string.Format("Invalid INSTEON address '{0}'", data.Device));
+                e.Cancel = true;
+                return;
             }
-            e.Cancel = true;
-        }
 
-        void device_DeviceStatusChanged(object sender, InsteonDeviceStatusChangedEventArgs data)
-        {
-            if (this.data.DeviceStatus == data.DeviceStatus)
-                Trigger();
+            if (!InsteonService.VerifyConnection())
+            {
+                ErrorLog.AddError(ErrorType.Failure, string.Format("Lost connection to INSTEON network. {0}", InsteonService.SpecificConnection != null ? InsteonService.SpecificConnection.ToString() : string.Empty));
+                e.Cancel = true;
+                return;
+            }
+
+            if (!InsteonService.Network.Devices.ContainsKey(address))
+                device = InsteonService.Network.Devices.Add(address, new InsteonIdentity());
+
+            device = InsteonService.Network.Devices.Find(address);
+            device.DeviceStatusChanged += device_DeviceStatusChanged;
         }
         protected override void OnDisabled(DisabledEventArgs e)
-        {
+        {            
             if (device != null)
                 device.DeviceStatusChanged -= device_DeviceStatusChanged;
+        }
+        void device_DeviceStatusChanged(object sender, InsteonDeviceStatusChangedEventArgs data)
+        {
+            if (this.IsEnabled && this.data.DeviceStatus == data.DeviceStatus)
+                Trigger();
         }
     }
 }

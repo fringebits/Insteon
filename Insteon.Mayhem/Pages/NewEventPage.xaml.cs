@@ -46,6 +46,13 @@ namespace Insteon.Mayhem
         {
             Window window = Window.GetWindow(this);
             window.Cursor = Cursors.AppStarting;
+
+            if (helpBubble.IsVisible)
+            {
+                helpBubble.Visibility = Visibility.Hidden;
+                UIHelper.RefreshElement(helpBubble);
+            }
+
             byte group = 0;
             string message = null;
             if (!InsteonService.TryGetAvailableGroup(out group, out message))
@@ -86,7 +93,8 @@ namespace Insteon.Mayhem
             captionTextBlock.Visibility = Visibility.Visible;
             animation.Visibility = Visibility.Hidden;
             addButton.Visibility = Visibility.Hidden;
-            helpTextBlock.Visibility = Visibility.Hidden;
+            helpBubble.Visibility = Visibility.Hidden;
+            UIHelper.RefreshElement(helpBubble);
         }
 
         private void timeout_Elapsed(object sender, ElapsedEventArgs e)
@@ -95,7 +103,7 @@ namespace Insteon.Mayhem
             InsteonService.Network.Controller.DeviceLinked -= PlmDevice_DeviceLinked;
 
             InsteonService.Network.Controller.TryCancelLinkMode();
-            this.Dispatcher.BeginInvoke(new Action(() => helpTextBlock.Visibility = Visibility.Visible), null);
+            this.Dispatcher.BeginInvoke(new Action(() => helpBubble.Visibility = Visibility.Visible), null);
         }
 
         private void OnDeviceLinked(string address)

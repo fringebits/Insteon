@@ -13,7 +13,7 @@
     >
     
     <Canvas HorizontalAlignment="Left" VerticalAlignment="Top">
-        <my:SwitchLincAnimation x:Name="animation" Canvas.Left="-66" Canvas.Top="-13" Step1="Press the SET button on the INSTEON device you would like to turn on or off with this reaction and hold it down for 3 seconds." Step2="The device will automatically link as soon as it enters linking mode." />
+        <my:SwitchLincAnimation x:Name="animation" Canvas.Left="-1" Canvas.Top="-15" Step1="Press the SET button on the INSTEON device you would like to turn on or off with this reaction and hold it down for 3 seconds." Step2="The device will automatically link as soon as it enters linking mode." />
         <TextBlock Canvas.Left="12" Canvas.Top="12" Height="109" Name="captionTextBlock" Text="Are you still there?" Width="374" TextWrapping="Wrap" Visibility="Hidden" />
         <Button Canvas.Left="306" Canvas.Top="12" Content="Try Again" Height="28" Name="retryButton" Width="80" Click="retryButton_Click" Visibility="Hidden"/>
     </Canvas>

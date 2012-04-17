@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.IO;
 using System.Text;
@@ -31,6 +32,7 @@ namespace Insteon.Mayhem
 
         private static string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), @"Mayhem\Insteon.Connection.txt");
         private static AutoResetEvent wait = new AutoResetEvent(false);
+        private static Stopwatch verifyStopwatch = new Stopwatch();
 
         public static InsteonNetwork Network { get; private set; }
         public static InsteonConnection SpecificConnection { get; set; }
@@ -208,6 +210,44 @@ namespace Insteon.Mayhem
                     }
                 }
             }
+        }
+
+        public static bool VerifyConnection()
+        {
+            bool result;
+
+            if (Network.IsConnected)
+            {
+                if (verifyStopwatch.ElapsedMilliseconds < 10000)
+                    return true;
+                result = Network.VerifyConnection();
+            }
+            else
+            {
+                StartNetwork();
+                WaitUntilConnected();
+                result = Network.IsConnected;
+            }
+
+            verifyStopwatch.Reset();
+            if (result)
+                verifyStopwatch.Start();
+
+            return result;
+        }
+
+        public static string GetDeviceStatusDisplayName(InsteonDeviceStatus status)
+        {
+            switch (status)
+            {
+                case InsteonDeviceStatus.On:        return "On";
+                case InsteonDeviceStatus.Off:       return "Off";
+                case InsteonDeviceStatus.FastOn:    return "Fast On";
+                case InsteonDeviceStatus.FastOff:   return "Fast Off";
+                case InsteonDeviceStatus.Brighten:  return "Brighten";
+                case InsteonDeviceStatus.Dim:       return "Dim";
+                default:                            return "Unknown";
+            }            
         }
     }
 }

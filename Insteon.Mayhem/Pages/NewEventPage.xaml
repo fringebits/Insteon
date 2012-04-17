@@ -11,10 +11,25 @@
     >
 
     <Canvas HorizontalAlignment="Left" VerticalAlignment="Top">
-        <my:SwitchLincAnimation Canvas.Left="-67" Canvas.Top="-14" x:Name="animation" Step1="Press the SET button on the INSTEON device you would like to trigger this event and hold it down for 3 seconds." Step2="When the light begins blinking on the INSTEON device, press the Add button below to link the device." />
-        <Button Canvas.Left="176" Canvas.Top="136" Content="Add" Height="30" Name="addButton" Width="56" Click="AddButton_Click" />
-        <TextBlock Canvas.Left="245" Canvas.Top="134" Height="55" Name="helpTextBlock" Width="146" TextWrapping="Wrap" Visibility="Hidden" Text="An INSTEON device must be in linking mode first. Please try again." />
+        <my:SwitchLincAnimation Canvas.Left="0" Canvas.Top="-14" x:Name="animation" Step1="Press the SET button on the INSTEON device you would like to trigger this event and hold it down for 3 seconds." Step2="When the light begins blinking on the INSTEON device, press the Add button below to link the device." />
+        <Button Canvas.Left="289" Canvas.Top="107" Content="Add" Height="30" Name="addButton" Width="105" Click="AddButton_Click" />
         <TextBlock Canvas.Left="12" Canvas.Top="12" Height="110" Name="captionTextBlock" Text="" Width="382" TextWrapping="Wrap" Visibility="Visible" />
+        <Viewbox x:Name="helpBubble"  Height="137" Canvas.Left="63" Stretch="Fill" Canvas.Top="126" Width="309" Visibility="Hidden" Opacity="0.9">
+        	<Grid Height="137" Width="309">
+        		<Path
+        			Data="M297,44.05 L297.99024,44.053219 620,45.099999 634,93.049964" Fill="#FFFF9800" Height="38.817" Stretch="Fill" Width="50.9" RenderTransformOrigin="0.5,0.5" TextBlock.Foreground="White" TextBlock.FontWeight="Bold" HorizontalAlignment="Right" Margin="0,0,45.1,0" VerticalAlignment="Top">
+        			<Path.RenderTransform>
+        				<TransformGroup>
+        					<ScaleTransform/>
+        					<SkewTransform />
+        					<RotateTransform Angle="111.111" />
+        					<TranslateTransform />
+        				</TransformGroup>
+        			</Path.RenderTransform>
+        		</Path>
+                <TextBlock TextWrapping="Wrap" Visibility="Visible" Text="An INSTEON device must be in linking mode first.&#xa;Please try again.&#xa;&#xa;&#xa;Note: Certain devices such as an OutletLinc or ApplianceLinc cannot be used to trigger an event." Background="#FFFF9800" Foreground="White" Opacity="1" Padding="10,5" FontWeight="Bold" Margin="0,26,0,0" />
+        	</Grid>
+        </Viewbox>
     </Canvas>
     
 </UserControl>

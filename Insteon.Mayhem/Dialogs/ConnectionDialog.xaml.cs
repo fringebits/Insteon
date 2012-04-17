@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.ComponentModel;
+using System.Timers;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -36,12 +37,18 @@ namespace Insteon.Mayhem
     {
         private readonly BackgroundWorker worker = new BackgroundWorker();
         private InsteonConnection[] availableConnections = null;
+        private InsteonConnection[] serialConnections = null;
+        private readonly Timer timer = new Timer();
 
         public InsteonConnection SelectedConnection { get; private set; }
 
         public ConnectionDialog()
         {
             InitializeComponent();
+            timer.Interval = 1000;
+            timer.AutoReset = true;
+            timer.Elapsed += timer_Elapsed;
+            timer.Start();
         }
 
         private void Canvas_Loaded(object sender, RoutedEventArgs e)
@@ -106,23 +113,35 @@ namespace Insteon.Mayhem
 
         private void AddSerialConnections()
         {
-            InsteonConnection[] connections = InsteonService.Network.GetAvailableSerialConnections();
-            foreach (InsteonConnection connection in connections)
+            serialConnections = InsteonService.Network.GetAvailableSerialConnections();
+            serialComboBox.Items.Clear();
+            if (serialConnections.Length > 0)
             {
-                serialRadioButton.IsEnabled = true;
-                ComboBoxItem item = new ComboBoxItem();
-                item.Content = connection.Name;
-                item.Tag = connection;
-                serialComboBox.Items.Add(item);
-                if (connection.Equals(InsteonService.Network.Connection))
+                foreach (InsteonConnection connection in serialConnections)
                 {
-                    item.IsSelected = true;
-                    serialRadioButton.IsChecked = true;
+                    serialRadioButton.IsEnabled = true;
+                    ComboBoxItem item = new ComboBoxItem();
+                    item.Content = connection.Name;
+                    item.Tag = connection;
+                    serialComboBox.Items.Add(item);
+                    if (connection.Equals(InsteonService.Network.Connection))
+                    {
+                        item.IsSelected = true;
+                        serialRadioButton.IsChecked = true;
+                    }
+                    else if (serialComboBox.Items.Count == 1)
+                    {
+                        item.IsSelected = true;
+                    }
                 }
-                else if (serialComboBox.Items.Count == 1)
-                {
-                    item.IsSelected = true;
-                }
+            }
+            else
+            {
+                if (serialRadioButton.IsChecked.Value)
+                    availableRadioButton.IsChecked = true;
+                serialRadioButton.IsChecked = false;
+                serialRadioButton.IsEnabled = false;
+                serialComboBox.IsEnabled = false;
             }
         }
 
@@ -183,6 +202,24 @@ namespace Insteon.Mayhem
             networkTextBox.IsEnabled = false;
             serialComboBox.IsEnabled = true;
             serialComboBox.Focus();
+        }
+
+        private void timer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            InsteonConnection[] connections = InsteonService.Network.GetAvailableSerialConnections();
+            if (connections.Length != serialConnections.Length)
+            {
+                this.Dispatcher.BeginInvoke(new Action(() => AddSerialConnections()), null);
+                return;
+            }
+            for (int i = 0; i < connections.Length; ++i)
+            {
+                if (!connections[i].Equals(serialConnections[i]))
+                {
+                    this.Dispatcher.BeginInvoke(new Action(() => AddSerialConnections()), null);
+                    return;
+                }
+            }
         }
     }
 }

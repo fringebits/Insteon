@@ -30,7 +30,7 @@ namespace Insteon.Mayhem
         public bool IsEmpty { get { return Group == 0 || string.IsNullOrWhiteSpace(Device); } }
         public override string ToString()
         {
-            return string.Format("{0} {1}", Device, DeviceStatus.ToString());
+            return string.Format("{0} {1}", Device, InsteonService.GetDeviceStatusDisplayName(DeviceStatus));
         }
     }
 }

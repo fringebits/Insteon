@@ -60,18 +60,18 @@
                 <DiscreteObjectKeyFrame KeyTime="0:0:15" Value="{x:Static Visibility.Visible}"/>
             </ObjectAnimationUsingKeyFrames>
             <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Opacity)" Storyboard.TargetName="step1TextBlock">
-            	<EasingDoubleKeyFrame KeyTime="0" Value="0.35"/>
+            	<EasingDoubleKeyFrame KeyTime="0" Value="0.75"/>
             	<EasingDoubleKeyFrame KeyTime="0:0:1" Value="0.495"/>
             	<EasingDoubleKeyFrame KeyTime="0:0:1.5" Value="1"/>
             	<EasingDoubleKeyFrame KeyTime="0:0:3.5" Value="1"/>
-            	<EasingDoubleKeyFrame KeyTime="0:0:4" Value="0.35"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:4" Value="0.75"/>
             </DoubleAnimationUsingKeyFrames>
             <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Opacity)" Storyboard.TargetName="step2TextBlock">
-            	<EasingDoubleKeyFrame KeyTime="0" Value="0.35"/>
-            	<EasingDoubleKeyFrame KeyTime="0:0:3.5" Value="0.35"/>
+                <EasingDoubleKeyFrame KeyTime="0" Value="0.75"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:3.5" Value="0.75"/>
             	<EasingDoubleKeyFrame KeyTime="0:0:4" Value="1"/>
             	<EasingDoubleKeyFrame KeyTime="0:0:14.6" Value="1"/>
-            	<EasingDoubleKeyFrame KeyTime="0:0:15" Value="0.35"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:15" Value="0.75"/>
             </DoubleAnimationUsingKeyFrames>
         </Storyboard>
     </UserControl.Resources>
@@ -86,8 +86,8 @@
 
     <Viewbox>
         <Grid x:Name="LayoutRoot" HorizontalAlignment="Left" Height="375" VerticalAlignment="Top" Width="400">
-            <Image x:Name="SwitchLinc" Source="/Insteon.Mayhem;component/Widgets/Images/SwitchLinc.png" Stretch="Fill" Margin="0,0,100,75"/>
-            <Image x:Name="Finger" Height="185" Source="/Insteon.Mayhem;component/Widgets/Images/Finger.png" Stretch="Fill" RenderTransformOrigin="0.5,0.5" Margin="26.333,0,88.667,-185.667" VerticalAlignment="Bottom">
+            <Image x:Name="SwitchLinc" Source="/Insteon.Mayhem;component/Widgets/Images/SwitchLinc.png" Stretch="Fill" Margin="53,0,47,75"/>
+            <Image x:Name="Finger" Height="185" Source="/Insteon.Mayhem;component/Widgets/Images/Finger.png" Stretch="Fill" RenderTransformOrigin="0.5,0.5" Margin="79.333,0,35.667,-185.667" VerticalAlignment="Bottom">
                 <Image.RenderTransform>
                     <TransformGroup>
                         <ScaleTransform/>
@@ -97,7 +97,7 @@
                     </TransformGroup>
                 </Image.RenderTransform>
             </Image>
-            <Ellipse x:Name="Light8" Height="4.333" Width="4.333" HorizontalAlignment="Left" Margin="113.833,79.834,0,0" VerticalAlignment="Top">
+            <Ellipse x:Name="Light8" Height="4.333" Width="4.333" HorizontalAlignment="Left" Margin="166.833,79.834,0,0" VerticalAlignment="Top">
                 <Ellipse.Fill>
                     <RadialGradientBrush>
                         <GradientStop Color="White" Offset="0.43"/>
@@ -107,7 +107,7 @@
                     </RadialGradientBrush>
                 </Ellipse.Fill>
             </Ellipse>
-            <Ellipse x:Name="Light0" Height="4.333" Width="4.333" Visibility="Hidden" HorizontalAlignment="Left" Margin="113.833,145.834,0,0" VerticalAlignment="Top">
+            <Ellipse x:Name="Light0" Height="4.333" Width="4.333" Visibility="Hidden" HorizontalAlignment="Left" Margin="166.833,145.834,0,0" VerticalAlignment="Top">
                 <Ellipse.Fill>
                     <RadialGradientBrush>
                         <GradientStop Color="White" Offset="0.43"/>
@@ -117,8 +117,8 @@
                     </RadialGradientBrush>
                 </Ellipse.Fill>
             </Ellipse>
-            <TextBlock x:Name="step1TextBlock" Text="Hold the SET button down for 3 seconds to put an INSTEON device into linking mode." Width="200" Height="75" Visibility="Visible" TextWrapping="Wrap" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" Margin="0,0,-37,95" VerticalAlignment="Bottom" d:LayoutOverrides="VerticalAlignment" />
-            <TextBlock x:Name="step2TextBlock" Text="A blinking light indicates the device is in linking mode." Width="200" Height="75" Visibility="Visible" TextWrapping="Wrap" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" Margin="0,75,-40,0" VerticalAlignment="Top" />
+            <TextBlock x:Name="step1TextBlock" Text="Hold the SET button down for 3 seconds to put an INSTEON device into linking mode." Width="110" Height="265" Visibility="Visible" TextWrapping="Wrap" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Margin="8,0,0,93" VerticalAlignment="Bottom" />
+            <TextBlock x:Name="step2TextBlock" Text="A blinking light indicates the device is in linking mode." Width="102" Visibility="Visible" TextWrapping="Wrap" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" Margin="0,17,8,93" />
         </Grid>
     </Viewbox>
 
