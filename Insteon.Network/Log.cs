@@ -25,20 +25,10 @@ namespace Insteon.Network
 {
     internal static class Log
     {
-#if INSTEON_DEBUG            
         private static StreamWriter w = null;
-#endif
-
-        public static void Open()
-        {
-#if INSTEON_DEBUG            
-            Open(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
-#endif
-        }
 
         public static void Open(string path)
         {
-#if INSTEON_DEBUG
             Close();            
             string fullPath = null;
             for (int i = 0; i < 10000; ++i)
@@ -53,15 +43,13 @@ namespace Insteon.Network
                 w = new StreamWriter(fullPath);
             if (w != null)
                 w.WriteLine(DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss.fff"));
-#endif
         }
 
         public static void WriteLine(string message)
         {
 #if INSTEON_DEBUG
-            if (w == null)
-                Log.Open();
             Debug.WriteLine(message);
+#endif
             if (w != null)
             {
                 w.Write(DateTime.Now.ToString("HH:mm:ss.fff"));
@@ -70,22 +58,17 @@ namespace Insteon.Network
                 w.WriteLine(message);
                 w.Flush();
             }
-#endif
         }
 
         public static void WriteLine(string format, params object[] args)
         {
-#if INSTEON_DEBUG
             WriteLine(string.Format(format, args));
-#endif
         }
 
         public static void Close()
         {
-#if INSTEON_DEBUG
             if (w != null)
                 w.Close();
-#endif
         }
     }
 }

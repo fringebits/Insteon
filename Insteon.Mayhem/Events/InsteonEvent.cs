@@ -53,7 +53,7 @@ namespace Insteon.Mayhem
         }
         protected override void OnDeleted()
         {
-            InsteonService.UnlinkDevice(data.Group, data.Device);
+//          InsteonService.UnlinkDevice(data.Group, data.Device);
         }        
         protected override void OnEnabling(EnablingEventArgs e)
         {
@@ -74,8 +74,8 @@ namespace Insteon.Mayhem
 
             if (!InsteonService.Network.Devices.ContainsKey(address))
                 device = InsteonService.Network.Devices.Add(address, new InsteonIdentity());
-
-            device = InsteonService.Network.Devices.Find(address);
+            else
+                device = InsteonService.Network.Devices.Find(address);
             device.DeviceStatusChanged += device_DeviceStatusChanged;
         }
         protected override void OnDisabled(DisabledEventArgs e)

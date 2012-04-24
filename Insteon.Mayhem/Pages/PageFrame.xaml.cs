@@ -34,9 +34,6 @@ namespace Insteon.Mayhem
 {
     public partial class PageFrame : UserControl
     {
-        private bool lostConnection = false;
-        private bool retryConnection = false;
-
         public PageFrame()
         {
             InitializeComponent();
@@ -62,14 +59,7 @@ namespace Insteon.Mayhem
         {
             Type pageType = pagePanel.Children.Count > 0 ? pagePanel.Children[0].GetType() : null;
 
-            if (lostConnection && retryConnection)
-            {
-                retryConnection = false; 
-                if (InsteonService.Network.VerifyConnection())
-                    lostConnection = false;
-            }
-
-            if (InsteonService.Network.IsConnected && !lostConnection)
+            if (InsteonService.Network.IsConnected)
             {
                 statusTextBlock.Text = string.Format("Connected to '{0}'", InsteonService.Network.Connection.Name);
                 statusTextBlock.ToolTip = InsteonService.GetConnectionInfo(InsteonService.Network.Connection);
@@ -120,7 +110,6 @@ namespace Insteon.Mayhem
             pagePanel.Height = page.Height;
             StatusControlsVisible = true;
             UpdateStatus();
-            retryConnection = true;
         }
 
         public bool ShowConnectionDialog()
@@ -133,7 +122,7 @@ namespace Insteon.Mayhem
 
             if (dialog.SelectedConnection != null)
             {
-                if (!dialog.SelectedConnection.Equals(InsteonService.Network.Connection)) // do nothing if selected connection matches active connection
+                if (!dialog.SelectedConnection.Equals(InsteonService.Network.Connection)) // only take action if the selected connection DOES NOT match the active connection, otherwise do nothing
                 {
                     StatusControlsVisible = false;
                     UIHelper.RefreshElement(this);
@@ -168,8 +157,22 @@ namespace Insteon.Mayhem
 
         void Network_Disconnected(object sender, EventArgs e)
         {
-            lostConnection = true;
-            this.Dispatcher.BeginInvoke(new Action(() => this.UpdateStatus()), null);
+            this.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (InsteonService.SpecificConnection == null)
+                {
+                    statusTextBlock.Text = "Lost connection";
+                    statusTextBlock.ToolTip = null;
+                }
+                else
+                {
+                    statusTextBlock.Text = string.Format("Lost connection to '{0}'", InsteonService.SpecificConnection.Name);
+                    statusTextBlock.ToolTip = InsteonService.GetConnectionInfo(InsteonService.SpecificConnection);
+                }
+                iconViewbox.Child = new StopIcon();
+                statusTextBlock.Cursor = Cursors.Hand;
+                iconViewbox.Cursor = Cursors.Hand;
+            }), null);
         }
 
         void Network_ConnectProgress(object sender, ConnectProgressChangedEventArgs e)

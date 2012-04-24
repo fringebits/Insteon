@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace Insteon.Network
 {
@@ -28,18 +29,30 @@ namespace Insteon.Network
     public class InsteonDevice
     {
         /// <summary>
-        /// Invoked when a status message is received from the INSTEON device, for example when the device turns on or off.
+        /// Invoked when a device fails to respond to a command within the timeout period of 2 seconds.
         /// </summary>
-        public event InsteonDeviceStatusChangedEventHandler DeviceStatusChanged;
+        public event InsteonDeviceEventHandler DeviceCommandTimeout;
 
         /// <summary>
         /// Invoked when the device has been identified.
         /// </summary>
         public event InsteonDeviceEventHandler DeviceIdentified;
 
-        private enum DimmerDirection { None, Up, Down }
+        /// <summary>
+        /// Invoked when a status message is received from the INSTEON device, for example when the device turns on or off.
+        /// </summary>
+        public event InsteonDeviceStatusChangedEventHandler DeviceStatusChanged;
+
+        /// <summary>
+        /// Gets the command that is currently pending on the device, or null if no command is pending.
+        /// </summary>
+        public InsteonDeviceCommands? PendingCommand { get; private set; }
 
         private readonly InsteonNetwork network;
+        private readonly Timer pendingTimer;
+        private readonly AutoResetEvent pendingEvent = new AutoResetEvent(false);
+
+        private enum DimmerDirection { None, Up, Down }
         private DimmerDirection dimmerDirection = DimmerDirection.None;
 
         internal InsteonDevice(InsteonNetwork network, InsteonAddress address, InsteonIdentity identity)
@@ -47,6 +60,7 @@ namespace Insteon.Network
             this.network = network;
             this.Address = address;
             this.Identity = identity;
+            this.pendingTimer = new Timer(new TimerCallback(PendingCommandTimerCallback), null, Timeout.Infinite, Constants.messageTimeout);
         }
 
         /// <summary>
@@ -61,9 +75,12 @@ namespace Insteon.Network
 
         /// <summary>
         /// Sends an INSTEON command to the device.
-        /// This method is a non-blocking operation.
-        /// The device status changed event will be invoked if the command is successful.
         /// </summary>
+        /// <remarks>
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately (as long as another command is not already pending for the device). Only one command can be pending to an INSTEON device at a time. This method will block if a second command is sent while a first command is still pending. Check the <see cref="PendingCommand">PendingCommand</see> property to determine whether a command is pending.
+        /// The <see cref="DeviceStatusChanged">DeviceStatusChanged</see> event will be invoked if the command is successful.
+        /// The <see cref="DeviceCommandTimeout">DeviceCommandTimeout</see> event will be invoked if the device does not respond within the expected timeout period.
+        /// </remarks>
         /// <param name="command">Specifies the INSTEON device command to be invoked.</param>
         public void Command(InsteonDeviceCommands command)
         {
@@ -75,29 +92,20 @@ namespace Insteon.Network
 
         /// <summary>
         /// Sends an INSTEON command to the device.
-        /// This method is a non-blocking operation.
-        /// The device status changed event will be invoked if the command is successful.
         /// </summary>
+        /// <remarks>
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately (as long as another command is not already pending for the device). Only one command can be pending to an INSTEON device at a time. This method will block if a second command is sent while a first command is still pending. Check the <see cref="PendingCommand">PendingCommand</see> property to determine whether a command is pending.
+        /// The <see cref="DeviceStatusChanged">DeviceStatusChanged</see> event will be invoked if the command is successful.
+        /// The <see cref="DeviceCommandTimeout">DeviceCommandTimeout</see> event will be invoked if the device does not respond within the expected timeout period.
+        /// </remarks>
         /// <param name="command">Specifies the INSTEON device command to be invoked.</param>
         /// <param name="value">A parameter value required by some commands.</param>
         public void Command(InsteonDeviceCommands command, byte value)
         {
-            byte flags = 0x0F;
-            byte cmd1 = (byte)command;
-            byte cmd2 = value;
-            byte[] message = { 0x62, Address[2], Address[1], Address[0], flags, cmd1, cmd2 };
+            WaitAndSetPendingCommand(command);
+            byte[] message = GetStandardMessage(Address, (byte)command, value);
+            Log.WriteLine("Device.Command(command:{0}, value:{1:X2})", command.ToString(), value);
             network.Messenger.Send(message);
-        }
-
-        /// <summary>
-        /// Determines the type of INSTEON device by querying the device.
-        /// This method is a non-blocking operation.
-        /// The device identified event will be invoked if the command is successful.
-        /// </summary>
-        public void Identify()
-        {
-            this.Identity = new InsteonIdentity();
-            Command(InsteonDeviceCommands.IDRequest);
         }
 
         /// <summary>
@@ -140,6 +148,50 @@ namespace Insteon.Network
             return commands.ToArray();
         }
 
+        /// <summary>
+        /// Gets a value that indicates the on-level of the device.
+        /// </summary>
+        /// <returns>
+        /// A value indicating the on-level of the device. For a dimmer a value between 0 and 255 will be returned. For a non-dimmer a value 0 or 255 will be returned.
+        /// </returns>
+        /// <remarks>
+        /// This is a blocking method that sends an INSTEON message to the target device and waits for a reply, or until a timeout of 2 seconds has passed.
+        /// </remarks>
+        public byte GetOnLevel()
+        {
+            byte value;
+            if (!TryGetOnLevel(out value))
+                throw new IOException();
+            return value;
+        }
+
+        private static byte[] GetStandardMessage(InsteonAddress address, byte cmd1, byte cmd2)
+        {
+            byte[] message = { 0x62, address[2], address[1], address[0], 0x0F, cmd1, cmd2 };
+            return message;
+        }
+
+        /// <summary>
+        /// Determines the type of INSTEON device by querying the device.
+        /// </summary>
+        /// <remarks>
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately (as long as another command is not already pending for the device). Only one command can be pending to an INSTEON device at a time. This method will block if a second command is sent while a first command is still pending. Check the <see cref="PendingCommand">PendingCommand</see> property to determine whether a command is pending.
+        /// The <see cref="DeviceIdentified">DeviceIdentified</see> event will be invoked if the command is successful.
+        /// The <see cref="DeviceCommandTimeout">DeviceCommandTimeout</see> event will be invoked if the device does not respond within the expected timeout period.
+        /// </remarks>
+        public void Identify()
+        {
+            this.Identity = new InsteonIdentity();
+            Command(InsteonDeviceCommands.IDRequest);
+        }
+
+        private void OnDeviceCommandTimeout()
+        {
+            if (DeviceCommandTimeout != null)
+                DeviceCommandTimeout(this, new InsteonDeviceEventArgs(this));
+            network.Devices.OnDeviceCommandTimeout(this);
+        }
+
         private void OnDeviceIdentified()
         {
             if (DeviceIdentified != null)
@@ -170,6 +222,10 @@ namespace Insteon.Network
         {
             switch (message.MessageType)
             {
+                case InsteonMessageType.Ack:
+                    PendingCommandAck(message);
+                    break;
+
                 case InsteonMessageType.OnCleanup:
                     OnDeviceStatusChanged(InsteonDeviceStatus.On);
                     break;
@@ -209,11 +265,57 @@ namespace Insteon.Network
             }
         }
 
+        // if a command is pending determines whether the current message completes the pending command
+        private void PendingCommandAck(InsteonMessage message)
+        {
+            lock (pendingEvent)
+            {
+                if (PendingCommand != null)
+                {
+                    int cmd1 = message.Properties[PropertyKey.Cmd1];
+                    if (Enum.IsDefined(typeof(InsteonDeviceCommands), cmd1))
+                    {
+                        InsteonDeviceCommands command = (InsteonDeviceCommands)cmd1;
+                        if (PendingCommand.Value == command)
+                        {
+                            PendingCommand = null;
+                            pendingTimer.Change(Timeout.Infinite, Timeout.Infinite); // stop timeout timer
+                            pendingEvent.Set(); // unblock any thread that may be waiting on the pending command
+                        }
+                    }
+                }
+            }
+        }
+
+        // invoked when a pending command times out
+        private void PendingCommandTimerCallback(object state)
+        {
+            string latchedPendingCommand = null;
+            lock (pendingEvent)
+            {
+                if (PendingCommand != null)
+                {
+                    latchedPendingCommand = PendingCommand.ToString();
+                    PendingCommand = null;
+                    pendingTimer.Change(Timeout.Infinite, Timeout.Infinite); // stop timeout timer
+                    pendingEvent.Set(); // unblock any thread that may be waiting on the pending command                
+                }
+            }
+            if (latchedPendingCommand != null)
+            {
+                Log.WriteLine("ERROR: Device {0} command {1} timed out", Address.ToString(), latchedPendingCommand);
+                OnDeviceCommandTimeout();
+            }
+        }
+
         /// <summary>
         /// Sends an INSTEON command to the device.
-        /// This method is a non-blocking operation.
-        /// The device status changed event will be invoked if the command is successful.
         /// </summary>
+        /// <remarks>
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately (as long as another command is not already pending for the device). Only one command can be pending to an INSTEON device at a time. This method will block if a second command is sent while a first command is still pending. Check the <see cref="PendingCommand">PendingCommand</see> property to determine whether a command is pending.
+        /// The <see cref="DeviceStatusChanged">DeviceStatusChanged</see> event will be invoked if the command is successful.
+        /// The <see cref="DeviceCommandTimeout">DeviceCommandTimeout</see> event will be invoked if the device does not respond within the expected timeout period.
+        /// </remarks>
         /// <param name="command">Specifies the INSTEON device command to be invoked.</param>
         public bool TryCommand(InsteonDeviceCommands command)
         {
@@ -225,30 +327,59 @@ namespace Insteon.Network
 
         /// <summary>
         /// Sends an INSTEON command to the device.
-        /// This method is a non-blocking operation.
-        /// The device status changed event will be invoked if the command is successful.
         /// </summary>
         /// <param name="command">Specifies the INSTEON device command to be invoked.</param>
         /// <param name="value">A parameter value required by some commands.</param>
         /// <remarks>
         /// This method does not throw an exception.
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately (as long as another command is not already pending for the device). Only one command can be pending to an INSTEON device at a time. This method will block if a second command is sent while a first command is still pending. Check the <see cref="PendingCommand">PendingCommand</see> property to determine whether a command is pending.
+        /// The <see cref="DeviceStatusChanged">DeviceStatusChanged</see> event will be invoked if the command is successful.
+        /// The <see cref="DeviceCommandTimeout">DeviceCommandTimeout</see> event will be invoked if the device does not respond within the expected timeout period.
         /// </remarks>
         public bool TryCommand(InsteonDeviceCommands command, byte value)
         {
-            byte flags = 0x0F;
-            byte cmd1 = (byte)command;
-            byte cmd2 = value;
-            byte[] message = { 0x62, Address[2], Address[1], Address[0], flags, cmd1, cmd2 };
+            WaitAndSetPendingCommand(command);
+            byte[] message = GetStandardMessage(Address, (byte)command, value);
+            Log.WriteLine("Device.Command(command:{0}, value:{1:X2})", command.ToString(), value);
             return network.Messenger.TrySend(message) == EchoStatus.ACK;
         }
 
         /// <summary>
+        /// Gets a value that indicates the on-level of the device.
+        /// </summary>
+        /// <returns>
+        /// A value indicating the on-level of the device. For a dimmer a value between 0 and 255 will be returned. For a non-dimmer a value 0 or 255 will be returned.
+        /// </returns>
+        /// <remarks>
+        /// This is a blocking method that sends an INSTEON message to the target device and waits for a reply, or until a timeout of 2 seconds has passed.
+        /// </remarks>
+        public bool TryGetOnLevel(out byte value)
+        {
+            Log.WriteLine("Device.GetOnLevel");
+            byte[] message = GetStandardMessage(Address, 0x19, 0);
+            Dictionary<PropertyKey, int> properties;
+            EchoStatus status = network.Messenger.TrySendReceive(message, true, 0x50, out properties); // on-level returned in cmd2 of ACK
+            if (status == EchoStatus.ACK && properties != null)
+            {
+                value = (byte)properties[PropertyKey.Cmd2];
+                Log.WriteLine("Device.GetOnLevel returning {0:X2}", value);
+                return true;
+            }
+            else
+            {
+                value = 0;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Determines the type of INSTEON device by querying the device.
-        /// This method is a non-blocking operation.
-        /// The device identified event will be invoked if the command is successful.
         /// </summary>
         /// <remarks>
         /// This method does not throw an exception.
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately (as long as another command is not already pending for the device). Only one command can be pending to an INSTEON device at a time. This method will block if a second command is sent while a first command is still pending. Check the <see cref="PendingCommand">PendingCommand</see> property to determine whether a command is pending.
+        /// The <see cref="DeviceIdentified">DeviceIdentified</see> event will be invoked if the command is successful.
+        /// The <see cref="DeviceCommandTimeout">DeviceCommandTimeout</see> event will be invoked if the device does not respond within the expected timeout period.
         /// </remarks>
         public bool TryIdentify()
         {
@@ -258,12 +389,13 @@ namespace Insteon.Network
 
         /// <summary>
         /// Removes links within both the INSTEON device and the INSTEON controller for the specified group.
-        /// This method is a non-blocking operation.
-        /// A link event will be invoked if the command is successful.
         /// </summary>
         /// <param name="group">The specified group within which links are to be removed.</param>
         /// <remarks>
         /// This method does not throw an exception.
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately (as long as another command is not already pending for the device). Only one command can be pending to an INSTEON device at a time. This method will block if a second command is sent while a first command is still pending. Check the <see cref="PendingCommand">PendingCommand</see> property to determine whether a command is pending.
+        /// A <see cref="InsteonController.DeviceLinked">DeviceLinked</see> event will be invoked on the controller if the command is successful.
+        /// The <see cref="DeviceCommandTimeout">DeviceCommandTimeout</see> event will be invoked if the device does not respond within the expected timeout period.
         /// </remarks>
         public bool TryUnlink(byte group)
         {
@@ -273,14 +405,44 @@ namespace Insteon.Network
                 return false;
         }
 
+        // blocks the current thread if a command is pending, then sets the current command as the pending command (note does not apply to all commands)
+        private void WaitAndSetPendingCommand(InsteonDeviceCommands command)
+        {           
+            InsteonDeviceCommands latchedPendingCommand;
+
+            lock (pendingEvent)
+            {
+                if (PendingCommand == null)
+                {
+                    PendingCommand = command;
+                    pendingTimer.Change(Constants.messageTimeout, Timeout.Infinite); // start timeout timer
+                    return;
+                }
+                latchedPendingCommand = PendingCommand.Value;
+            }
+
+            // block current thread if a command is pending
+            Log.WriteLine("Blocking command {0} for pending command {1}", command.ToString(), latchedPendingCommand.ToString());
+            pendingEvent.Reset();
+            if (!pendingEvent.WaitOne(Constants.messageTimeout)) // wait at most 2 seconds
+            {
+                lock (pendingEvent)
+                    PendingCommand = null; // break deadlock and warn
+                Log.WriteLine("WARNING: Unblocking command {0} for pending command {1}", command.ToString(), latchedPendingCommand.ToString());
+            }
+
+            WaitAndSetPendingCommand(command); // try again
+        }
+
         /// <summary>
         /// Removes links within both the INSTEON device and the INSTEON controller for the specified group.
-        /// This method is a non-blocking operation.
-        /// A link event will be invoked if the command is successful.
         /// </summary>
         /// <param name="group">The specified group within which links are to be removed.</param>
         /// <remarks>
         /// This method does not throw an exception.
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately (as long as another command is not already pending for the device). Only one command can be pending to an INSTEON device at a time. This method will block if a second command is sent while a first command is still pending. Check the <see cref="PendingCommand">PendingCommand</see> property to determine whether a command is pending.
+        /// A <see cref="InsteonController.DeviceLinked">DeviceLinked</see> event will be invoked on the controller if the command is successful.
+        /// The <see cref="DeviceCommandTimeout">DeviceCommandTimeout</see> event will be invoked if the device does not respond within the expected timeout period.
         /// </remarks>
         public void Unlink(byte group)
         {

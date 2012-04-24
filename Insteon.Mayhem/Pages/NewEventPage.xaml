@@ -7,13 +7,12 @@
     xmlns:my="clr-namespace:Insteon.Mayhem.Widgets"
     mc:Ignorable="d" 
     Width="400"
-    Height="268"
-    >
+    Height="268" xmlns:my1="clr-namespace:Insteon.Mayhem" Loaded="UserControl_Loaded">
 
     <Canvas HorizontalAlignment="Left" VerticalAlignment="Top">
-        <my:SwitchLincAnimation Canvas.Left="0" Canvas.Top="-14" x:Name="animation" Step1="Press the SET button on the INSTEON device you would like to trigger this event and hold it down for 3 seconds." Step2="When the light begins blinking on the INSTEON device, press the Add button below to link the device." />
-        <Button Canvas.Left="289" Canvas.Top="107" Content="Add" Height="30" Name="addButton" Width="105" Click="AddButton_Click" />
-        <TextBlock Canvas.Left="12" Canvas.Top="12" Height="110" Name="captionTextBlock" Text="" Width="382" TextWrapping="Wrap" Visibility="Visible" />
+        <TextBlock Canvas.Left="12" Canvas.Top="12" Height="110" Name="captionTextBlock" Text="One moment please..." Width="382" TextWrapping="Wrap" Visibility="Visible" />
+        <my:SwitchLincAnimation Visibility="Hidden" Canvas.Left="0" Canvas.Top="-14" x:Name="animation" Step1="Press the SET button on the INSTEON device you would like to trigger this event and hold it down for 3 seconds." Step2="When the light begins blinking on the INSTEON device, press the Add button below to link the device." />
+        <Button Visibility="Hidden" Canvas.Left="289" Canvas.Top="107" Content="Add" Height="30" Name="addButton" Width="105" Click="AddButton_Click" />
         <Viewbox x:Name="helpBubble"  Height="137" Canvas.Left="63" Stretch="Fill" Canvas.Top="126" Width="309" Visibility="Hidden" Opacity="0.9">
         	<Grid Height="137" Width="309">
         		<Path
@@ -30,6 +29,13 @@
                 <TextBlock TextWrapping="Wrap" Visibility="Visible" Text="An INSTEON device must be in linking mode first.&#xa;Please try again.&#xa;&#xa;&#xa;Note: Certain devices such as an OutletLinc or ApplianceLinc cannot be used to trigger an event." Background="#FFFF9800" Foreground="White" Opacity="1" Padding="10,5" FontWeight="Bold" Margin="0,26,0,0" />
         	</Grid>
         </Viewbox>
+        <Canvas Name="busyWidget" Visibility="Hidden">
+            <TextBlock Canvas.Left="311" Canvas.Top="143" Height="16" Text="Working..." Width="83" TextWrapping="Wrap" />
+            <my1:SpinningIcon Canvas.Left="289" Canvas.Top="143" Height="16" x:Name="spinningIcon1" Width="16" />
+        </Canvas>
+        <!--
+        <my1:SpinningIcon Width="64" Canvas.Left="168" Canvas.Top="102" x:Name="busyIcon" />
+        -->
     </Canvas>
     
 </UserControl>

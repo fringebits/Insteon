@@ -41,7 +41,7 @@ namespace Insteon.Mayhem
 
         public override string Title
         {
-            get { return "INSTEON Reaction"; }
+            get { return "INSTEON Command"; }
         }
     }
 }

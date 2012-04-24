@@ -23,7 +23,7 @@ using System.Text.RegularExpressions;
 namespace Insteon.Network
 {
     /// <summary>
-    /// Represents an INSTEON connection.
+    /// Represents a connection to an INSTEON network.
     /// </summary>
     public class InsteonConnection
     {
@@ -35,6 +35,10 @@ namespace Insteon.Network
         /// <summary>
         /// Determines whether this connection is the same as the specified connection.
         /// </summary>
+        /// <remarks>
+        /// Equality is determined by comparing the Type and Value properties.
+        /// The Name and Address properties are not used in the comparison as they are intended for informational display purposes only.
+        /// </remarks>
         /// <param name="other">The specified other connection object.</param>
         /// <returns>Returns true if this connection is the same as the other connection.</returns>
         public bool Equals(InsteonConnection other)
@@ -46,22 +50,22 @@ namespace Insteon.Network
         }
 
         /// <summary>
-        /// The display name for the connection string.
+        /// The display name for the connection.
         /// </summary>
         public string Name { get; private set; }
 
         /// <summary>
-        /// The type of connection.
+        /// The type of connection (e.g., network or serial).
         /// </summary>
         public InsteonConnectionType Type { get; private set; }
         
         /// <summary>
-        /// Value that specifies the network address or serial port.
+        /// Value that specifies the network address or serial port (e.g., "192.168.1.1" or "COM3").
         /// </summary>
         public string Value { get; private set; }
 
         /// <summary>
-        /// Initializes a new connection string instance.
+        /// Initializes a new connection instance.
         /// </summary>
         /// <param name="type">Type type of connection.</param>
         /// <param name="value">The connection value.</param>
@@ -71,11 +75,11 @@ namespace Insteon.Network
         }
 
         /// <summary>
-        /// Initializes a new connection string instance.
+        /// Initializes a new connection instance.
         /// </summary>
         /// <param name="type">Type type of connection.</param>
         /// <param name="value">The connection value.</param>
-        /// <param name="name">The display name for the connection string.</param>
+        /// <param name="name">The display name for the connection.</param>
         /// <param name="address">The INSTEON address of the controller device.</param>
         public InsteonConnection(InsteonConnectionType type, string value, string name, InsteonAddress address)
         {
@@ -92,10 +96,10 @@ namespace Insteon.Network
         }
 
         /// <summary>
-        /// Parses a string into a connection string object.
+        /// Parses a string into a connection object.
         /// </summary>
         /// <param name="text">The specified connection string.</param>
-        /// <returns>Returns the connection string object.</returns>
+        /// <returns>Returns the connection object.</returns>
         public static InsteonConnection Parse(string text)
         {
             if (string.IsNullOrEmpty(text))
@@ -126,7 +130,7 @@ namespace Insteon.Network
         /// Parses a string into a connection string object.
         /// </summary>
         /// <param name="text">The specified connection string.</param>
-        /// <param name="connection">The returned connection string object.</param>
+        /// <param name="connection">The returned connection object.</param>
         /// <returns>Returns true if the string could be parsed.</returns>
         public static bool TryParse(string text, out InsteonConnection connection)
         {

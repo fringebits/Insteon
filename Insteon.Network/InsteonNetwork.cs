@@ -47,7 +47,7 @@ namespace Insteon.Network
         public event EventHandler Closing;
 
         /// <summary>
-        /// Invoked when the connection to an INSTEON network is terminated.
+        /// Invoked when the connection to an INSTEON network is interrupted.
         /// </summary>
         public event EventHandler Disconnected;
         
@@ -104,8 +104,7 @@ namespace Insteon.Network
         }
 
         /// <summary>
-        /// <summary>
-        /// Returns the INSTEON network connection string, or null if the network is not connected. This string can be used later to reconnect to the same network.
+        /// Returns the INSTEON network connection object, or null if the network is not connected. This object can be used later to reconnect to the same network.
         /// </summary>
         public InsteonConnection Connection { get; private set; }
 
@@ -116,7 +115,7 @@ namespace Insteon.Network
         }
 
         /// <summary>
-        /// Returns the available connections.
+        /// Returns the available network and serial connections.
         /// </summary>
         /// <param name="refresh">Specifies whether to refresh the list. If called after TryConnectNet with false the list found by TryConnectNet will be returned.</param>
         /// <returns>An array of objects representing each available connection.</returns>
@@ -128,11 +127,11 @@ namespace Insteon.Network
         public InsteonConnection[] GetAvailableConnections(bool refresh)
         {
             List<InsteonConnection> list = new List<InsteonConnection>();
-            InsteonConnection[] connections = GetAvailableNetworkConnections(refresh);
-            if (connections == null)
-                return null;
-            list.AddRange(connections);
-            list.AddRange(GetAvailableSerialConnections());
+            InsteonConnection[] networkConnections = GetAvailableNetworkConnections(refresh);
+            if (networkConnections != null)
+                list.AddRange(networkConnections);
+            InsteonConnection[] serialConnections = GetAvailableSerialConnections();
+            list.AddRange(serialConnections);
             return list.ToArray();
         }
 
@@ -196,8 +195,11 @@ namespace Insteon.Network
             {
             }
             if (ports != null)
+            {
+                Array.Sort(ports);
                 foreach (string port in ports)
                     list.Add(new InsteonConnection(InsteonConnectionType.Serial, port));
+            }
             return list.ToArray();
         }
 
@@ -295,7 +297,7 @@ namespace Insteon.Network
         /// <summary>
         /// Attempts to connect to an INSTEON network by trying each specified connection. The first successful connection will be returned.
         /// </summary>
-        /// <param name="connection">Specifies the list of connections.</param>
+        /// <param name="connections">Specifies the list of connections.</param>
         /// <returns>Returns true if a connection was successfully made, or false if unable to find a connection.</returns>
         /// <remarks>
         /// This is a blocking operation that accesses the local network.
@@ -333,7 +335,7 @@ namespace Insteon.Network
         /// </summary>
         /// <returns>Returns true if the connection is verified.</returns>
         /// <remarks>
-        /// If the verification fails the disconnect event will be invoked and false will be returned.
+        /// If the verification fails the <see cref="Disconnected">Disconnected</see> event will be invoked and false will be returned.
         /// This method does not throw an exception.
         /// </remarks>
         public bool VerifyConnection()

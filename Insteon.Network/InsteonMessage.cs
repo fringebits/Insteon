@@ -28,13 +28,38 @@ namespace Insteon.Network
             this.MessageId = messageId;
             this.MessageType = messageType;
             this.Properties = properties;
+            this.Key = ToString("Key");
         }
+        public string Key { get; private set; }
         public int MessageId { get; private set; }
         public InsteonMessageType MessageType { get; private set; }        
         public Dictionary<PropertyKey, int> Properties { get; private set; }
         public override string ToString()
         {
             return MessageType.ToString();
+        }
+        public string ToString(string format)
+        {
+            if (format == "Log")
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendFormat("  MessageId={0:X2}", MessageId);
+                sb.AppendLine();
+                sb.AppendFormat("  MessageType={0}", MessageType.ToString());
+                sb.Append(Utilities.FormatProperties(Properties, true, false));
+                return sb.ToString();
+            }
+            else if (format == "Key")
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendFormat("MessageId={0:X2} ", MessageId);
+                sb.Append(Utilities.FormatProperties(Properties, false, true));
+                return sb.ToString();
+            }
+            else
+            {
+                return ToString();
+            }
         }
     }
 }

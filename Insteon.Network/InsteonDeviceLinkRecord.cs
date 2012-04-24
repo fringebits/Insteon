@@ -53,16 +53,20 @@ namespace Insteon.Network
         
         /// <summary>
         /// Device specific link information for the device link.
+        /// For a responder link, this value typically represents the on-level.
+        /// For a controller link, this value specifies the number of times to retry the command.
         /// </summary>
         public byte Data1 { get; private set; }
 
         /// <summary>
         /// Device specific link information for the device link.
+        /// For a responder link, this value typically represents the ramp rate.
         /// </summary>
         public byte Data2 { get; private set; }
 
         /// <summary>
         /// Device specific link information for the device link.
+        /// For a responder link in a KeypadLinc device, this value typically represents the keypad button number.
         /// </summary>
         public byte Data3 { get; private set; }
 
@@ -104,7 +108,7 @@ namespace Insteon.Network
         Empty = 0,
         
         /// <summary>
-        /// Indicates the link record is a controller link, allowing message to be sent to the linked device.
+        /// Indicates the link record is a controller link, allowing messages to be sent to the linked device.
         /// </summary>
         Controller,
         

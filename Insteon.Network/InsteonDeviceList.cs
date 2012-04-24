@@ -32,6 +32,11 @@ namespace Insteon.Network
         public event InsteonDeviceEventHandler DeviceAdded;
 
         /// <summary>
+        /// Invoked when a device fails to respond to a command within the timeout period of 2 seconds.
+        /// </summary>
+        public event InsteonDeviceEventHandler DeviceCommandTimeout;
+
+        /// <summary>
         /// Invoked when a device is identified.
         /// </summary>
         public event InsteonDeviceEventHandler DeviceIdentified;
@@ -115,6 +120,10 @@ namespace Insteon.Network
             return devices[address.Value];
         }
 
+        /// <summary>
+        /// Returns an enumerator that iterates through the collection.
+        /// </summary>
+        /// <returns>An IEnumerator object that can be used to iterate through the collection.</returns>
         public IEnumerator GetEnumerator()
         {
             return devices.Values.GetEnumerator();
@@ -129,6 +138,11 @@ namespace Insteon.Network
         {
             if (DeviceAdded != null)
                 DeviceAdded(this, new InsteonDeviceEventArgs(device));
+        }
+        internal void OnDeviceCommandTimeout(InsteonDevice device)
+        {
+            if (DeviceCommandTimeout != null)
+                DeviceCommandTimeout(this, new InsteonDeviceEventArgs(device));
         }
         internal void OnDeviceIdentified(InsteonDevice device)
         {

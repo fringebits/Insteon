@@ -29,6 +29,7 @@ namespace Insteon.Mayhem
     {
         [DataMember]
         private InsteonReactionDataItem data = new InsteonReactionDataItem();
+        private InsteonDevice device = null;
 
         public InsteonReaction()
         {
@@ -48,22 +49,66 @@ namespace Insteon.Mayhem
         }
         protected override void OnDeleted()
         {
-            InsteonService.UnlinkDevice(data.Group, data.Device);
+//          InsteonService.UnlinkDevice(data.Group, data.Device);
         }
         protected override void OnEnabling(EnablingEventArgs e)
         {
-            if (!InsteonService.VerifyConnection())
+            InsteonAddress address;
+            if (!InsteonAddress.TryParse(data.Device, out address))
             {
-                ErrorLog.AddError(ErrorType.Failure, string.Format("Unable to connect to INSTEON network. {0}", InsteonService.SpecificConnection != null ? InsteonService.SpecificConnection.ToString() : string.Empty));
+                ErrorLog.AddError(ErrorType.Failure, string.Format("Invalid INSTEON address '{0}'", data.Device));
                 e.Cancel = true;
                 return;
             }
+
+            if (!InsteonService.VerifyConnection())
+            {
+                ErrorLog.AddError(ErrorType.Failure, string.Format("Lost connection to INSTEON network. {0}", InsteonService.SpecificConnection != null ? InsteonService.SpecificConnection.ToString() : string.Empty));
+                e.Cancel = true;
+                return;
+            }
+
+            if (!InsteonService.Network.Devices.ContainsKey(address))
+                device = InsteonService.Network.Devices.Add(address, new InsteonIdentity());
+            else
+                device = InsteonService.Network.Devices.Find(address);
         }
         public override void Perform()
         {
+            if (device == null)
+                return;
+
             InsteonService.WaitUntilConnected();
             if (InsteonService.Network.IsConnected)
             {
+                InsteonDeviceCommands command;
+                switch (data.DeviceStatus)
+                {
+                    case InsteonDeviceStatus.On:
+                        command = InsteonDeviceCommands.On;
+                        break;
+                    case InsteonDeviceStatus.Off:
+                        command = InsteonDeviceCommands.Off;
+                        break;
+                    case InsteonDeviceStatus.FastOn:
+                        command = InsteonDeviceCommands.FastOn;
+                        break;
+                    case InsteonDeviceStatus.FastOff:
+                        command = InsteonDeviceCommands.FastOff;
+                        break;
+                    case InsteonDeviceStatus.Brighten:
+                        command = InsteonDeviceCommands.Brighten;
+                        break;
+                    case InsteonDeviceStatus.Dim:
+                        command = InsteonDeviceCommands.Dim;
+                        break;
+                    default:
+                        return;
+                }
+                if (!device.TryCommand(command))
+                    ErrorLog.AddError(ErrorType.Failure, string.Format("Could not send INSTEON command {0} to device {1} due to a problem communicating with the INSTEON controller.", command.ToString(), data.Device));
+
+                /*
                 InsteonControllerGroupCommands command;
                 switch (data.DeviceStatus)
                 {
@@ -88,8 +133,9 @@ namespace Insteon.Mayhem
                     default:
                         return;
                 }
-                if (!InsteonService.Network.Controller.TryGroupCommand(command, data.Group))
-                    ErrorLog.AddError(ErrorType.Failure, string.Format("Could not send INSTEON command {0} to device {1} (group {2}) due to a problem communicating with the INSTEON controller.", command.ToString(), data.Device, data.Group));
+                if (!InsteonService.Network.Controller.TryGroupCommand(command, 0xFF))
+                    ErrorLog.AddError(ErrorType.Failure, string.Format("Could not send INSTEON command {0} to device {1} due to a problem communicating with the INSTEON controller.", command.ToString(), data.Device));
+                */
             }
         }
     }

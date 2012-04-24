@@ -20,7 +20,7 @@ using System.Text;
 
 namespace Insteon.Network.Serial
 {
-    // Responsible for determing the type of serial interface adapter to invoke based on the specified connection string.
+    // Responsible for determing the type of serial interface adapter to invoke based on the specified connection object.
     internal static class SerialPortCreator
     {
         public static ISerialPort Create(InsteonConnection connection)

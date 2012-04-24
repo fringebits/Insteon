@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.IO;
@@ -29,6 +30,7 @@ namespace Insteon.Mayhem
     internal static class InsteonService
     {
         public static event EventHandler ConnectionFailed;
+        public static event AsyncCompletedEventHandler GetAvailableGroupCompleted;
 
         private static string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), @"Mayhem\Insteon.Connection.txt");
         private static AutoResetEvent wait = new AutoResetEvent(false);
@@ -40,8 +42,11 @@ namespace Insteon.Mayhem
 
         static InsteonService()
         {
-            InsteonNetwork.SetLogPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Mayhem"));
+            string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), @"Mayhem\Logs");
+            if (Directory.Exists(logPath))
+                InsteonNetwork.SetLogPath(logPath);
             Network = new InsteonNetwork();
+            Network.AutoAdd = true;
             Application.Current.Exit += Application_Exit;
         }
 
@@ -133,29 +138,57 @@ namespace Insteon.Mayhem
             InsteonConnection connection = obj as InsteonConnection;
             if (connection != null)
             {
-                SpecificConnection = connection;
-                if (!connection.Equals(Network.Connection))
-                    Network.Close();
-            }
-
-            if (SpecificConnection == null)
-                LoadSettings();
-
-            if (SpecificConnection != null)
-            {                
-                Network.TryConnect(SpecificConnection);
+                SpecificConnection = null;
+                Network.Close();
+                Network.TryConnect(connection);
             }
             else
             {
-                Network.TryConnect();
+                if (SpecificConnection == null)
+                    LoadSettings();
+
+                if (SpecificConnection != null)
+                {
+                    Network.TryConnect(SpecificConnection);
+                }
+                else
+                {
+                    Network.TryConnect();
+                }
             }
+
+            SpecificConnection = Network.Connection;
             if (!Network.IsConnected)
-            {
                 OnConnectionFailed();
-            }
+
             Connecting = false;
             wait.Set();
         }
+
+/*
+        private static void GetAvailableGroupThreadProc(object obj)
+        {
+            InsteonDeviceLinkRecord[] links;
+            if (!Network.Controller.TryGetLinks(out links))
+            {
+                OnGetAvailableGroupCompleted("Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.");
+                return;
+            }
+
+            bool[] used = new bool[256];
+            foreach (InsteonDeviceLinkRecord link in links)
+                used[link.Group] = true;
+
+            for (byte i = 255; i > 0; --i)
+                if (!used[i])
+                {
+                    OnGetAvailableGroupCompleted(i);
+                    return;
+                }
+
+            OnGetAvailableGroupCompleted("Sorry, no more devices can be added.\r\n\r\nIf there is another event or reaction that may no longer be needed, remove it and try again.");
+        }
+*/
 
         private static void OnConnectionFailed()
         {
@@ -163,37 +196,33 @@ namespace Insteon.Mayhem
                 ConnectionFailed(null, EventArgs.Empty);
         }
 
-        public static bool TryGetAvailableGroup(out byte group, out string message)
+/*
+        private static void OnGetAvailableGroupCompleted(string error)
         {
-            group = 0;
-            message = null;
+            if (GetAvailableGroupCompleted != null)
+                GetAvailableGroupCompleted(null, new AsyncCompletedEventArgs(new Exception(error), false, null));
+        }
+*/
 
+        private static void OnGetAvailableGroupCompleted(byte group)
+        {
+            if (GetAvailableGroupCompleted != null)
+                GetAvailableGroupCompleted(null, new AsyncCompletedEventArgs(null, false, group));
+        }
+
+        public static void BeginGetAvailableGroup()
+        {
+            OnGetAvailableGroupCompleted(0xFF); // Mayhem always uses group 255
+/*
             if (Network == null || !Network.IsConnected)
             {
-                message = "Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.";
-                return false;
+                OnGetAvailableGroupCompleted("Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.");
             }
-            
-            InsteonDeviceLinkRecord[] links;
-            if (!Network.Controller.TryGetLinks(out links))
+            else
             {
-                message = "Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.";
-                return false;
+                ThreadPool.QueueUserWorkItem(GetAvailableGroupThreadProc, null);
             }
-
-            bool[] used = new bool[256];
-            foreach (InsteonDeviceLinkRecord link in links)
-                used[link.Group] = true;
-            
-            for (byte i = 255; i > 0; --i)
-                if (!used[i])
-                {
-                    group = i;
-                    return true;
-                }
-            
-            message = "Sorry, no more devices can be added.\r\n\r\nIf there is another event or reaction that may no longer be needed, remove it and try again.";
-            return false;
+*/
         }
 
 
@@ -218,7 +247,7 @@ namespace Insteon.Mayhem
 
             if (Network.IsConnected)
             {
-                if (verifyStopwatch.ElapsedMilliseconds < 10000)
+                if (verifyStopwatch.IsRunning && verifyStopwatch.ElapsedMilliseconds < 10000)
                     return true;
                 result = Network.VerifyConnection();
             }

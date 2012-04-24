@@ -81,6 +81,7 @@ namespace Insteon.Network.Serial
 
         public void Wait(int timeout)
         {
+            wait.Reset();
             wait.WaitOne(timeout);
         }
 

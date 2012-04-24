@@ -177,9 +177,9 @@ namespace Insteon.Network
             else if (cmd1 == 0x06 && broadcast && allLink)
             {
                 messageType = InsteonMessageType.SuccessBroadcast;
-                properties[PropertyKey.ResponderCmd1] = data[offset + 3];
-                properties[PropertyKey.ResponderCount] = data[offset + 4];
-                properties[PropertyKey.ResponderGroup] = data[offset + 5];
+                properties[PropertyKey.ResponderCmd1] = data[offset + 4];
+                properties[PropertyKey.ResponderCount] = data[offset + 5];
+                properties[PropertyKey.ResponderGroup] = data[offset + 6];
                 properties[PropertyKey.ResponderErrorCount] = data[offset + 9];
             }
             else if (cmd1 == 0x11 && allLink && broadcast)

@@ -27,7 +27,7 @@ namespace Insteon.Network
     // The responsibilities of the bridge include:
     //  - Owning the serial connection to the INSTEON controller device.
     //  - Directing all serial communications through the serial interface to the INSTEON controller device.
-    //  - Detecting the beginning of each raw message by identifying the MESSAGE START header byte (02).
+    //  - Detecting the beginning of each raw message by identifying the MESSAGE START byte (02).
     //  - Delegating to the messenger the interpretation of the bytes following the header byte.
     //    Note: The messenger is responsible for reporting back to the bridge whether or not each message is valid, and if valid the size in bytes of the message.
     //  - Verifying the message integrity by checking the trailer byte for ACK (06) or NAK (15), and informing the messenger of the result.
@@ -72,7 +72,6 @@ namespace Insteon.Network
                 {
                     Log.WriteLine("TX: {0}", Utilities.ByteArrayToString(input));
                     port.Write(input);
-
 
                     port.Wait(Constants.openTimeout);
                     byte[] output = port.ReadAll();
@@ -139,7 +138,7 @@ namespace Insteon.Network
             if (port == null || messageProcessor == null)
                 throw new InvalidOperationException();
 
-            byte[] data = ReadData(10); // always try to get at least 10 bytes
+            byte[] data = ReadData(0, false);
             if (data.Length > 0)
                 Log.WriteLine("RX: {0}", Utilities.ByteArrayToString(data));
 
@@ -161,36 +160,37 @@ namespace Insteon.Network
                     if (data[offset++] == 0x02)
                     {
                         if (last != offset - 1)
-                            Log.WriteLine("SKIPPING {0} BYTES TO: {1}", offset - last, Utilities.ByteArrayToString(data, offset - 1));
-                        int retry = 0;
-                        while (++retry < Constants.retryCount)
+                            Log.WriteLine("WARNING: Skipping {0} bytes to '{1}', discarded '{2}'", offset - last, Utilities.ByteArrayToString(data, offset - 1), Utilities.ByteArrayToString(data, 0, offset));
+                        
+                        // loop until message successfully processed or until there is no more data available on the serial port...
+                        while (true) 
                         {
                             if (messageProcessor.ProcessMessage(data, offset, out count))
                             {
                                 offset += count;
                                 last = offset;
-                                break;
+                                break; // break out of the loop when message successfully processed
                             }
                             else
                             {
-                                byte[] more = ReadData(0);
-                                if (more.Length > 0)
+                                byte[] appendData = ReadData(1, false); // try to read at least one more byte, waits up to Constants.readTime milliseconds
+                                if (appendData.Length == 0)
                                 {
-                                    List<byte> list = new List<byte>(data);
-                                    list.AddRange(more);
-                                    data = list.ToArray();
-                                    Log.WriteLine("RX: {0} - RETRY {1} of {2} - got more data", Utilities.ByteArrayToString(data), retry, Constants.retryCount);
+                                    Log.WriteLine("WARNING: Could not process data '{0}'", Utilities.ByteArrayToString(data));
+                                    break; // break out of the loop when there is no more data available on the serial port
                                 }
-                                else
-                                {
-                                    Log.WriteLine("RX: {0} - RETRY {1} of {2} - waiting for more data", Utilities.ByteArrayToString(data), retry, Constants.retryCount);
-                                }
+
+                                List<byte> list = new List<byte>(data);
+                                list.AddRange(appendData);
+                                data = list.ToArray();
+                                Log.WriteLine("RX: {0} (appended)", Utilities.ByteArrayToString(data));
                             }
                         }
                     }
                 }
+
                 if (last != offset)
-                    Log.WriteLine("DISCARDING {0} BYTES: {1}", offset - last, Utilities.ByteArrayToString(data, last));
+                    Log.WriteLine("WARNING: Discarding {0} bytes '{1}'", offset - last, Utilities.ByteArrayToString(data, last));
             }
         }
 
@@ -199,27 +199,49 @@ namespace Insteon.Network
             if (port == null || messageProcessor == null)
                 throw new InvalidOperationException();
 
-            byte[] data = ReadData(echoLength);
+            byte[] data = ReadData(echoLength, true);
             if (data.Length == 0)
             {
                 Log.WriteLine("ERROR: No data read from port");
                 return EchoStatus.None;
             }
 
+            // if the first byte is a NAK (15) then return a NAK and add whatever additional data was read to the buffer
+            if (data[0] == 0x15)
+            {
+                Log.WriteLine("RX: {0} [NAK]", Utilities.ByteArrayToString(data));
+                if (data.Length > 1)
+                {
+                    int remainingCount = data.Length - 1;
+                    byte[] remainingData = new byte[remainingCount];
+                    Array.Copy(data, 1, remainingData, 0, remainingCount);
+                    lock (buffer)
+                        buffer.AddRange(remainingData);
+                    ProcessData(); //process the rest of the data stream
+                }
+                return EchoStatus.NAK;
+            }
+
+            // scan until a MESSAGE START byte (02) is detected, which should be the first byte
             int offset = 0;
-            while (offset < data.Length) // scan until a 02 is detected
+            while (offset < data.Length)
                 if (data[offset++] == 0x02)
                     break;
 
+            // exit if no MESSAGE START byte detected
             if (offset >= data.Length)
             {
-                Log.WriteLine("RX: {0} ERROR - Failed to find leading 02 byte", Utilities.ByteArrayToString(data));
+                Log.WriteLine("RX: {0} ERROR - Failed to find MESSAGE START byte (02)", Utilities.ByteArrayToString(data));
                 return EchoStatus.Unknown;
             }
 
-            if (offset > 1)
-                Log.WriteLine("SKIPPING {0} BYTES TO: {1}", offset - 1, Utilities.ByteArrayToString(data, offset - 1));
+            Log.WriteLine("RX: {0}", Utilities.ByteArrayToString(data));
 
+            // warn about any skipped bytes
+            if (offset > 1)
+                Log.WriteLine("WARNING: Skipping {0} bytes to '{1}', discarded '{2}'", offset - 1, Utilities.ByteArrayToString(data, offset - 1), Utilities.ByteArrayToString(data, 0, offset));
+
+            // process the echo and decode the trailing status byte
             int count;
             if (messageProcessor.ProcessEcho(data, offset, out count))
             {
@@ -238,18 +260,18 @@ namespace Insteon.Network
                 if (result == 0x06)
                 {
                     messageProcessor.SetEchoStatus(EchoStatus.ACK);
-                    Log.WriteLine("RX: {0} [ACK]", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for 02, +1 for 06
+                    Log.WriteLine("RX: {0} [ACK]", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for MESSAGE START byte (02), +1 for ACK byte (06)
                     return EchoStatus.ACK;
                 }
                 else if (result == 0x15)
                 {
-                    Log.WriteLine("RX: {0} [NAK]", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for 02, +1 for 15
+                    Log.WriteLine("RX: {0} [NAK]", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for MESSAGE START byte (02), +1 for NAK byte (15)
                     messageProcessor.SetEchoStatus(EchoStatus.NAK);
                     return EchoStatus.NAK;
                 }
                 else
                 {
-                    Log.WriteLine("RX: {0} ERROR - Unknown trailing byte", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for 02, +1 for ??
+                    Log.WriteLine("RX: {0} ERROR - Unknown trailing byte", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for MESSAGE START byte (02), +1 for unknown byte
                     messageProcessor.SetEchoStatus(EchoStatus.Unknown);
                     return EchoStatus.Unknown;
                 }
@@ -261,28 +283,43 @@ namespace Insteon.Network
             }
         }
 
-        private byte[] ReadData(int minimum)
+        private byte[] ReadData(int expectedBytes, bool isEcho)
         {
             List<byte> list = new List<byte>();
             byte[] data = port.ReadAll();
             list.AddRange(data);
 
-            int retryCount = 0;
-            while (list.Count == 0 && ++retryCount <= Constants.retryCount)
-            {
-                port.Wait(Constants.retryTime);
-                data = port.ReadAll();
-                list.AddRange(data);
-            }
+            // if we are expecting an echo response and the first byte received was a NAK (15) then don't bother waiting for more data
+            if (isEcho && data.Length > 0 && data[0] == 0x15)
+                return list.ToArray();  // caller will log the NAK
 
-            if (list.Count < minimum)
+            // if we didn't get the expected number of bytes then try to read more data within a timeout period
+            if (expectedBytes > 0)
             {
-                do
+                int retryCount = 0;
+                while (list.Count == 0 && ++retryCount <= Constants.retryCount)
                 {
-                    port.Wait(Constants.readTime);
+                    port.Wait(Constants.retryTime);
                     data = port.ReadAll();
                     list.AddRange(data);
-                } while (data.Length > 0);
+                }
+
+                if (list.Count < expectedBytes)
+                {
+                    do
+                    {
+                        port.Wait(Constants.readTime);
+                        data = port.ReadAll();
+                        list.AddRange(data);
+                    } while (data.Length > 0);
+                }
+
+                // if we are expecting an echo response and the first byte received was a NAK (15) then don't bother waiting for more data
+                if (isEcho && list.Count > 0 && list[0] == 0x15)
+                    return list.ToArray(); // caller will log the NAK
+
+                if (list.Count < expectedBytes)
+                    Log.WriteLine("WARNING: Could not read the expected number of bytes from the serial port - BytesRead='{0}', Expected={1}, Received={2}, Timeout={3}ms", Utilities.ByteArrayToString(list.ToArray()), expectedBytes, list.Count, Constants.readTime);
             }
                 
             return list.ToArray();

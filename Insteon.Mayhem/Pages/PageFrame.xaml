@@ -15,7 +15,7 @@
             <my:ConnectionPage VerticalAlignment="Top" />
         </Grid>
         <Canvas Height="32">
-            <my:InsteonLogo x:Name="insteonLogo" ToolTip="http://www.insteon.net" Canvas.Left="250" Canvas.Top="8" Width="150" Cursor="Hand" MouseLeftButtonUp="insteonLogo_MouseLeftButtonUp" />
+            <my:InsteonLogo x:Name="insteonLogo" ToolTip="http://www.insteon.com" Canvas.Left="250" Canvas.Top="8" Width="150" Cursor="Hand" MouseLeftButtonUp="insteonLogo_MouseLeftButtonUp" />
             <TextBlock x:Name="statusTextBlock" Canvas.Left="26" Canvas.Top="9" Height="16" Text="Searching..." Width="224" MouseUp="StatusControl_MouseUp" />
             <Viewbox x:Name="iconViewbox" Canvas.Left="6" Canvas.Top="9" Width="16" Height="16"  MouseUp="StatusControl_MouseUp">
                 <my:SpinningIcon x:Name="spinnerIcon" />

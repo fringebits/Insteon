@@ -24,7 +24,7 @@ using System.Timers;
 namespace Insteon.Network
 {
     /// <summary>
-    /// Represents the controller device, which interfaces with the variuos other INSTEON devices on the network.
+    /// Represents the controller device, which interfaces with the various other INSTEON devices on the network.
     /// </summary>
     public class InsteonController
     {
@@ -93,12 +93,12 @@ namespace Insteon.Network
         /// <summary>
         /// Places the INSTEON controller into linking mode in order to link or unlink a device.
         /// </summary>
-        /// <param name="mode">Determines the linking mode as controller, responder, either, or delete.</param>
+        /// <param name="mode">Determines the linking mode for the controller.</param>
         /// <param name="group">Specifies the INSTEON group number to which the device will be linked.</param>
         /// <remarks>
-        /// The DeviceLinked event will be raised when a device has been linked to the controller.
-        /// The DeviceUnlinked event will be raised when a device has been unklinked from the controller.
-        /// The DeviceLinkTimeout event will be raised if a device is not added within the 4 minute timeout period.
+        /// The <see cref="DeviceLinked">DeviceLinked</see> event will be raised when a device has been linked to the controller.
+        /// The <see cref="DeviceUnlinked">DeviceUnlinked</see> event will be raised when a device has been unklinked from the controller.
+        /// The <see cref="DeviceLinkTimeout">DeviceLinkTimeout</see> event will be raised if a device is not added within the 4 minute timeout period.
         /// </remarks>
         public void EnterLinkMode(InsteonLinkMode mode, byte group)
         {
@@ -120,23 +120,30 @@ namespace Insteon.Network
 
         /// <summary>
         /// Sends an INSTEON group broadcast command to the controller.
-        /// This method is a non-blocking operation.
-        /// Status changed events will be invoked for each INSTEON device linked within the specified group that responds to the command.
         /// </summary>
+        /// <remarks>
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately.
+        /// A <see cref="InsteonDevice.DeviceStatusChanged">DeviceStatusChanged</see> event will be invoked for each INSTEON device linked within the specified group that responds to the command.
+        /// </remarks>
         /// <param name="command">Specifies the INSTEON controller group command to be invoked.</param>
         /// <param name="group">Specifies the group number for the command.</param>
         public void GroupCommand(InsteonControllerGroupCommands command, byte group)
         {
             if (command == InsteonControllerGroupCommands.StopDimming)
                 throw new ArgumentNullException();
-            GroupCommand(command, group, 0);
+            byte value = 0;
+            if (command == InsteonControllerGroupCommands.On)
+                value = 0xFF;
+            GroupCommand(command, group, value);
         }
 
         /// <summary>
         /// Sends an INSTEON group broadcast command to the controller.
-        /// This method is a non-blocking operation.
-        /// Status changed events will be invoked for each INSTEON device linked within the specified group that responds to the command.
         /// </summary>
+        /// <remarks>
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately.
+        /// A <see cref="InsteonDevice.DeviceStatusChanged">DeviceStatusChanged</see> event will be invoked for each INSTEON device linked within the specified group that responds to the command.
+        /// </remarks>
         /// <param name="command">Specifies the INSTEON controller group command to be invoked.</param>
         /// <param name="group">Specifies the group number for the command.</param>
         /// <param name="value">A parameter value required by some group commands.</param>
@@ -144,6 +151,7 @@ namespace Insteon.Network
         {
             byte cmd = (byte)command;
             byte[] message = { 0x61, group, cmd, value };
+            Log.WriteLine("Controller.GroupCommand(command:{0}, group:{1:X2}, value:{2:X2})", command.ToString(), group, value);
             network.Messenger.Send(message);
         }
 
@@ -211,6 +219,7 @@ namespace Insteon.Network
             IsInLinkingMode = false;
             linkingMode = null;
             byte[] message = { 0x65 };
+            Log.WriteLine("Controller.CancelLinkMode");
             return network.Messenger.TrySend(message) == EchoStatus.ACK;
         }
 
@@ -220,15 +229,16 @@ namespace Insteon.Network
         /// <param name="mode">Determines the linking mode as controller, responder, either, or delete.</param>
         /// <param name="group">Specifies the INSTEON group number to which the device will be linked.</param>
         /// <remarks>
-        /// The DeviceLinked event will be raised when a device has been linked to the controller.
-        /// The DeviceUnlinked event will be raised when a device has been unklinked from the controller.
-        /// The DeviceLinkTimeout event will be raised if a device is not added within the 4 minute timeout period.
+        /// The <see cref="DeviceLinked">DeviceLinked</see> event will be raised when a device has been linked to the controller.
+        /// The <see cref="DeviceUnlinked">DeviceUnlinked</see> event will be raised when a device has been unklinked from the controller.
+        /// The <see cref="DeviceLinkTimeout">DeviceLinkTimeout</see> event will be raised if a device is not added within the 4 minute timeout period.
         /// This method does not throw an exception.
         /// </remarks>
         public bool TryEnterLinkMode(InsteonLinkMode mode, byte group)
         {
             linkingMode = mode;
             byte[] message = { 0x64, (byte)mode, group };
+            Log.WriteLine("Controller.EnterLinkMode(mode:{0}, group:{1:X2})", mode.ToString(), group);
             if (network.Messenger.TrySend(message) != EchoStatus.ACK)
                 return false;
             timer.Start();
@@ -245,74 +255,109 @@ namespace Insteon.Network
         /// </remarks>
         public bool TryGetLinks(out InsteonDeviceLinkRecord[] links)
         {
+            if (TryGetLinksInternal(out links))
+                return true;
+
+            const int retryCount = 3;
+            for (int retry = 0; retry < retryCount; ++retry)
+            {
+                Log.WriteLine("WARNING: Controller.GetLinks failed, retry {0} of {1}", retry, retryCount);
+                if (TryGetLinksInternal(out links))
+                    return true;
+            }
+
+            Log.WriteLine("ERROR: Controller.GetLinks failed");
+            return false;
+        }
+
+        private bool TryGetLinksInternal(out InsteonDeviceLinkRecord[] links)
+        {
             links = null;
             List<InsteonDeviceLinkRecord> list = new List<InsteonDeviceLinkRecord>();
             Dictionary<PropertyKey, int> properties;
             EchoStatus status = EchoStatus.None;
 
+            Log.WriteLine("Controller.GetLinks");
             byte[] message1 = { 0x69 };
             status = network.Messenger.TrySendReceive(message1, false, 0x57, out properties);
             if (status == EchoStatus.NAK)
             {
-                links = new InsteonDeviceLinkRecord[0];
+                links = new InsteonDeviceLinkRecord[0]; // empty link table
+                Log.WriteLine("Controller.GetLinks returned no links, empty link table");
                 return true;
             }
             else if (status == EchoStatus.ACK)
             {
+                if (properties == null)
+                {
+                    Log.WriteLine("ERROR: Null properties object");
+                    return false;
+                }
                 list.Add(new InsteonDeviceLinkRecord(properties));
             }
             else
             {
-                return false;
+                return false; // echo was not ACK or NAK
             }
 
+            Log.WriteLine("Controller.GetLinks");
             byte[] message2 = { 0x6A };
             status = network.Messenger.TrySendReceive(message2, false, 0x57, out properties);
             while (status == EchoStatus.ACK)
             {
+                if (properties == null)
+                {
+                    Log.WriteLine("ERROR: Null properties object");
+                    return false;
+                }
                 list.Add(new InsteonDeviceLinkRecord(properties));
                 status = network.Messenger.TrySendReceive(message2, false, 0x57, out properties);
             }
 
             if (status != EchoStatus.NAK)
-                return false;
+                return false; // echo was not ACK or NAK
 
             links = list.ToArray();
+            Log.WriteLine("Controller.GetLinks returned {0} links", links.Length);
             return true;
         }
 
         /// <summary>
         /// Sends an INSTEON group broadcast command to the controller.
-        /// This method is a non-blocking operation.
-        /// Status changed events will be invoked for each INSTEON device linked within the specified group that responds to the command.
         /// </summary>
         /// <param name="command">Specifies the INSTEON controller group command to be invoked.</param>
         /// <param name="group">Specifies the group number for the command.</param>
         /// <remarks>
         /// This method does not throw an exception.
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately.
+        /// A <see cref="InsteonDevice.DeviceStatusChanged">DeviceStatusChanged</see> event will be invoked for each INSTEON device linked within the specified group that responds to the command.
         /// </remarks>
         public bool TryGroupCommand(InsteonControllerGroupCommands command, byte group)
         {
             if (command == InsteonControllerGroupCommands.StopDimming)
                 return false;
-            return TryGroupCommand(command, group, 0);
+            byte value = 0;
+            if (command == InsteonControllerGroupCommands.On)
+                value = 0xFF;
+            return TryGroupCommand(command, group, value);
         }
 
         /// <summary>
         /// Sends an INSTEON group broadcast command to the controller.
-        /// This method is a non-blocking operation.
-        /// Status changed events will be invoked for each INSTEON device linked within the specified group that responds to the command.
         /// </summary>
         /// <param name="command">Specifies the INSTEON controller group command to be invoked.</param>
         /// <param name="group">Specifies the group number for the command.</param>
         /// <param name="value">A parameter value required by some group commands.</param>
         /// <remarks>
         /// This method does not throw an exception.
+        /// This is a non-blocking method that sends an INSTEON message to the target device and returns immediately.
+        /// A <see cref="InsteonDevice.DeviceStatusChanged">DeviceStatusChanged</see> event will be invoked for each INSTEON device linked within the specified group that responds to the command.
         /// </remarks>
         public bool TryGroupCommand(InsteonControllerGroupCommands command, byte group, byte value)
         {
             byte cmd = (byte)command;
             byte[] message = { 0x61, group, cmd, value };
+            Log.WriteLine("Controller.GroupCommand(command:{0}, group:{1:X2}, value:{2:X2})", command.ToString(), group, value);
             return network.Messenger.TrySend(message) == EchoStatus.ACK;
         }
     }

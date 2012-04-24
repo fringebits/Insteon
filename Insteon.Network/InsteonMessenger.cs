@@ -35,6 +35,7 @@ namespace Insteon.Network
         private readonly InsteonNetwork network;
         private readonly InsteonNetworkBridge bridge;
         private readonly List<WaitItem> waitList = new List<WaitItem>();
+        private readonly Dictionary<string, Timer> duplicates = new Dictionary<string, Timer>(); // used to detect duplicate messages
         private byte[] sentMessage = null; // bytes of last sent message, used to match the echo
         private bool echoCommand = false;
         private InsteonMessage echoMessage = null;
@@ -69,6 +70,34 @@ namespace Insteon.Network
                 ControllerProperties = bridge.Connect(connection);
             }
             Log.WriteLine("Connected to '{0}'", connection);
+
+            byte[] message = { 0x6B, 0x48 }; // disable deadman
+            Send(message);
+        }
+
+        private void DuplicateMessageTimerCallback(object state)
+        {
+            string key = state as string;
+            lock (duplicates)
+                if (duplicates.ContainsKey(key))
+                    duplicates.Remove(key);
+        }
+
+        private bool IsDuplicateMessage(InsteonMessage message)
+        {
+            lock (duplicates)
+            {
+                // determine if message key matches an entry in the list
+                foreach (KeyValuePair<string, Timer> item in duplicates)
+                    if (message.Key == item.Key)
+                        return true;
+
+                // create a new duplicte entry
+                Timer timer = new Timer(new TimerCallback(DuplicateMessageTimerCallback), message.Key, 0, 1000);
+                duplicates.Add(message.Key, timer);
+
+                return false;
+            }
         }
 
         private void OnMessage(InsteonMessage message)
@@ -78,7 +107,7 @@ namespace Insteon.Network
                 int address = message.Properties[PropertyKey.FromAddress];
                 if (network.Devices.ContainsKey(address))
                 {
-                    Log.WriteLine("Device {0} received message '{1}'", InsteonAddress.Format(address), message.ToString());
+                    Log.WriteLine("Device {0} received message {1}", InsteonAddress.Format(address), message.ToString());
                     InsteonDevice device = network.Devices.Find(address);
                     device.OnMessage(message);
                 }
@@ -88,18 +117,18 @@ namespace Insteon.Network
                 }
                 else if (network.AutoAdd)
                 {
-                    Log.WriteLine("Device {0} received message '{1}', adding unknown device", InsteonAddress.Format(address), message.ToString());
+                    Log.WriteLine("Unknown device {0} received message {1}, adding device", InsteonAddress.Format(address), message.ToString());
                     InsteonDevice device = network.Devices.Add(new InsteonAddress(address), new InsteonIdentity());
                     device.OnMessage(message);
                 }
                 else
                 {
-                    Log.WriteLine("WARNING: Unknown device {0} received message '{1}'", InsteonAddress.Format(address), message.ToString());
+                    Log.WriteLine("WARNING: Unknown device {0} received message {1}", InsteonAddress.Format(address), message.ToString());
                 }
             }
             else
             {
-                Log.WriteLine("Controller received message '{0}'", message.ToString());
+                Log.WriteLine("Controller received message {0}", message.ToString());
                 network.Controller.OnMessage(message);
             }
         }
@@ -123,16 +152,21 @@ namespace Insteon.Network
                 try
                 {
                     Log.WriteLine("Trying connection '{0}'...", connection.ToString());
+
                     lock (bridge)
                     {
                         ControllerProperties = bridge.Connect(connection);
                     }
                     Log.WriteLine("Connected to '{0}'", connection);
+
+                    byte[] message = { 0x6B, 0x48 }; // disable deadman
+                    TrySend(message);
+
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLine("ERROR: Cound not connect to '{0}'. {1}", connection.ToString(), ex.Message);
+                    Log.WriteLine("ERROR: Could not connect to '{0}'. {1}", connection.ToString(), ex.Message);
                 }
             }
             return false;
@@ -216,6 +250,8 @@ namespace Insteon.Network
                     item.MessageEvent.WaitOne(Constants.messageTimeout);
                 if (item.Message != null)
                     properties = item.Message.Properties;
+                else
+                    Log.WriteLine("ERROR: Did not receive expected message reply - SentMessage='{0}', ExpectedReceiveMessageId={1:X2}, Timeout={2}ms", Utilities.ByteArrayToString(message), receiveMessageId, Constants.messageTimeout);
             }
 
             lock (waitList)
@@ -264,8 +300,16 @@ namespace Insteon.Network
             InsteonMessage message;
             if (InsteonMessageProcessor.ProcessMessage(data, offset, out count, out message))
             {
-                OnMessage(message);
-                UpdateWaitItems(message);
+                if (!IsDuplicateMessage(message))
+                {
+                    Log.WriteLine("Message processed: {0} ...\r\n{1}", Utilities.ByteArrayToString(data, offset, count), message.ToString("Log"));
+                    OnMessage(message);
+                    UpdateWaitItems(message);
+                }
+                else
+                {
+                    Log.WriteLine("Ignoring duplicate message: {0} ...\r\n{1}", Utilities.ByteArrayToString(data, offset, count), message.ToString("Log"));
+                }
                 return true;
             }
             else
@@ -279,15 +323,25 @@ namespace Insteon.Network
             byte[] message = Utilities.ArraySubset(data, offset, sentMessage.Length);
             if (echoCommand)
             {
-                return InsteonMessageProcessor.ProcessMessage(data, offset, out count, out echoMessage);
+                if (InsteonMessageProcessor.ProcessMessage(data, offset, out count, out echoMessage))
+                {
+                    Log.WriteLine("Echo processed: {0} ...\r\n{1}", Utilities.ByteArrayToString(data, offset, count), echoMessage.ToString("Log"));
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
             else if (Utilities.ArraySequenceEquals(sentMessage, message))
             {
                 count = sentMessage.Length;
+                Log.WriteLine("Echo matched: {0}", Utilities.ByteArrayToString(data, offset, count));
                 return true;
             }
             else
             {
+                Log.WriteLine("Echo mismatch");
                 count = 0;
                 return false;
             }

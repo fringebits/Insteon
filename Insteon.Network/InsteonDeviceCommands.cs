@@ -76,10 +76,5 @@ namespace Insteon.Network
         /// Commands a dimmer device to stop the dimming process initiated by a previous start dimming command.
         /// </summary>
         StopDimming = 0x18,
-
-        /// <summary>
-        /// Queries a device for its on/off status.
-        /// </summary>
-        StatusRequest = 0x19
     }
 }

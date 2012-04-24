@@ -40,7 +40,9 @@ namespace Insteon.Network
         /// <summary>
         /// Initializes a new instance of the InsteonAddress class with a set of three byte values.
         /// </summary>
-        /// <param name="address">A byte array representation of the INSTEON address. Example: { 0x19, 0x9E, 0x4E }.</param>
+        /// <param name="a2">The high order byte part of the INSTEON address.</param>
+        /// <param name="a1">The middle order byte part of the INSTEON address.</param>
+        /// <param name="a0">The low order byte part of the INSTEON address.</param>
         public InsteonAddress(byte a2, byte a1, byte a0)
         {
             value = a0 | a1 << 8 | a2 << 16;
