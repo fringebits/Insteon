@@ -34,7 +34,7 @@ using Insteon.Network;
 
 namespace Insteon.Mayhem
 {
-    public partial class NewEventPage : UserControl
+    public partial class NewEventPage : UserControl, IPage
     {
         private InsteonEventConfig config = null;
         private Timer timeout = null;
@@ -42,7 +42,6 @@ namespace Insteon.Mayhem
         public NewEventPage()
         {
             InitializeComponent();
-            InsteonService.GetAvailableGroupCompleted += InsteonService_GetAvailableGroupCompleted;
         }
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
@@ -51,7 +50,13 @@ namespace Insteon.Mayhem
                 return;
 
             config = UIHelper.FindParent<InsteonEventConfig>(this);
+            InsteonService.GetAvailableGroupCompleted += InsteonService_GetAvailableGroupCompleted;
             InsteonService.BeginGetAvailableGroup();
+        }
+
+        public void Close()
+        {
+            InsteonService.GetAvailableGroupCompleted -= InsteonService_GetAvailableGroupCompleted;
         }
 
         private void AddButton_Click(object sender, RoutedEventArgs e)
@@ -87,7 +92,6 @@ namespace Insteon.Mayhem
             addButton.Visibility = Visibility.Hidden;
             helpBubble.Visibility = Visibility.Hidden;
             busyWidget.Visibility = Visibility.Hidden;
-//          busyIcon.Visibility = Visibility.Hidden;
         }
 
         private void OnDeviceLinked(string address)
@@ -117,7 +121,6 @@ namespace Insteon.Mayhem
                 this.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     captionTextBlock.Text = string.Empty;
-//                  busyIcon.Visibility = Visibility.Hidden;
                     animation.Visibility = Visibility.Visible;
                     addButton.Visibility = Visibility.Visible;
                 }), null);
@@ -141,6 +144,6 @@ namespace Insteon.Mayhem
                 busyWidget.Visibility = Visibility.Hidden;
                 addButton.IsEnabled = true;
             }), null);
-        }
+        }        
     }
 }

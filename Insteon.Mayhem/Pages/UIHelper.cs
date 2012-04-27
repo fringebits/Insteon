@@ -51,4 +51,9 @@ namespace Insteon.Mayhem
             element.Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
         }
     }
+
+    internal interface IPage
+    {
+        void Close();
+    }
 }

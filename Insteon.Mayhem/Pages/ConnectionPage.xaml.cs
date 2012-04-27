@@ -32,7 +32,7 @@ using Insteon.Network;
 
 namespace Insteon.Mayhem
 {
-    public partial class ConnectionPage : UserControl
+    public partial class ConnectionPage : UserControl, IPage
     {
         private bool stopping = false;
 
@@ -71,6 +71,13 @@ namespace Insteon.Mayhem
                 InsteonService.Network.VerifyConnection(); // note: page frame will react on disconnect event if verification fails
                 ShowNextPage();
             }
+        }
+
+        public void Close()
+        {
+            InsteonService.Network.Connected -= Network_Connected;
+            InsteonService.ConnectionFailed -= InsteonService_ConnectionFailed;
+            InsteonService.Network.ConnectProgress -= Network_ConnectProgress;
         }
 
         private void HideProgressControls()

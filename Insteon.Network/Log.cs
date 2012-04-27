@@ -25,38 +25,50 @@ namespace Insteon.Network
 {
     internal static class Log
     {
+        private static readonly object sync = new object();
         private static StreamWriter w = null;
 
         public static void Open(string path)
         {
-            Close();            
-            string fullPath = null;
-            for (int i = 0; i < 10000; ++i)
+            lock (sync)
             {
-                string fileName = string.Format(@"{0}.{1:0000}.log", Assembly.GetExecutingAssembly().GetName().Name, i);
-                fullPath = Path.Combine(path, fileName);
+                if (w != null)
+                    w.Close();
 
-                if (!File.Exists(fullPath))
-                    break;
+                string fullPath = null;
+                for (int i = 0; i < 10000; ++i)
+                {
+                    string fileName = string.Format(@"{0}.{1:0000}.log", Assembly.GetExecutingAssembly().GetName().Name, i);
+                    fullPath = Path.Combine(path, fileName);
+
+                    if (!File.Exists(fullPath))
+                        break;
+                }
+
+                if (!string.IsNullOrEmpty(fullPath))
+                    w = new StreamWriter(fullPath);
+                
+                if (w != null)
+                {
+                    FileVersionInfo version = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);
+                    w.WriteLine("Date: {0}, Version: {1}", DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss.fff"), version.FileVersion);
+                }
             }
-            if (!string.IsNullOrEmpty(fullPath))
-                w = new StreamWriter(fullPath);
-            if (w != null)
-                w.WriteLine(DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss.fff"));
         }
 
         public static void WriteLine(string message)
         {
-#if INSTEON_DEBUG
-            Debug.WriteLine(message);
-#endif
-            if (w != null)
+            string output = w != null ? string.Format("{0} {1}", DateTime.Now.ToString("HH:mm:ss.fff"), message) : string.Empty;
+            lock (sync)
             {
-                w.Write(DateTime.Now.ToString("HH:mm:ss.fff"));
-                w.Write(" ");
-                w.Write(string.Format(""));
-                w.WriteLine(message);
-                w.Flush();
+#if INSTEON_DEBUG
+                Debug.WriteLine(message);
+#endif
+                if (w != null)
+                {
+                    w.WriteLine(output);
+                    w.Flush();
+                }
             }
         }
 
@@ -67,8 +79,9 @@ namespace Insteon.Network
 
         public static void Close()
         {
-            if (w != null)
-                w.Close();
+            lock (sync)
+                if (w != null)
+                    w.Close();
         }
     }
 }

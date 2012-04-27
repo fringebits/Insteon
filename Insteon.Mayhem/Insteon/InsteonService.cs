@@ -46,7 +46,6 @@ namespace Insteon.Mayhem
             if (Directory.Exists(logPath))
                 InsteonNetwork.SetLogPath(logPath);
             Network = new InsteonNetwork();
-            Network.AutoAdd = true;
             Application.Current.Exit += Application_Exit;
         }
 
@@ -157,7 +156,6 @@ namespace Insteon.Mayhem
                 }
             }
 
-            SpecificConnection = Network.Connection;
             if (!Network.IsConnected)
                 OnConnectionFailed();
 
@@ -165,44 +163,11 @@ namespace Insteon.Mayhem
             wait.Set();
         }
 
-/*
-        private static void GetAvailableGroupThreadProc(object obj)
-        {
-            InsteonDeviceLinkRecord[] links;
-            if (!Network.Controller.TryGetLinks(out links))
-            {
-                OnGetAvailableGroupCompleted("Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.");
-                return;
-            }
-
-            bool[] used = new bool[256];
-            foreach (InsteonDeviceLinkRecord link in links)
-                used[link.Group] = true;
-
-            for (byte i = 255; i > 0; --i)
-                if (!used[i])
-                {
-                    OnGetAvailableGroupCompleted(i);
-                    return;
-                }
-
-            OnGetAvailableGroupCompleted("Sorry, no more devices can be added.\r\n\r\nIf there is another event or reaction that may no longer be needed, remove it and try again.");
-        }
-*/
-
         private static void OnConnectionFailed()
         {
             if (ConnectionFailed != null)
                 ConnectionFailed(null, EventArgs.Empty);
         }
-
-/*
-        private static void OnGetAvailableGroupCompleted(string error)
-        {
-            if (GetAvailableGroupCompleted != null)
-                GetAvailableGroupCompleted(null, new AsyncCompletedEventArgs(new Exception(error), false, null));
-        }
-*/
 
         private static void OnGetAvailableGroupCompleted(byte group)
         {
@@ -213,16 +178,6 @@ namespace Insteon.Mayhem
         public static void BeginGetAvailableGroup()
         {
             OnGetAvailableGroupCompleted(0xFF); // Mayhem always uses group 255
-/*
-            if (Network == null || !Network.IsConnected)
-            {
-                OnGetAvailableGroupCompleted("Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.");
-            }
-            else
-            {
-                ThreadPool.QueueUserWorkItem(GetAvailableGroupThreadProc, null);
-            }
-*/
         }
 
 

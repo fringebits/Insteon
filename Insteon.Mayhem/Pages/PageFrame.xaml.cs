@@ -105,7 +105,7 @@ namespace Insteon.Mayhem
 
         public void SetPage(UserControl page)
         {
-            pagePanel.Children.Clear();
+            CloseActivePage();
             pagePanel.Children.Add(page);
             pagePanel.Height = page.Height;
             StatusControlsVisible = true;
@@ -150,12 +150,32 @@ namespace Insteon.Mayhem
             }
         }
 
-        void Network_Connected(object sender, EventArgs e)
+        public void OnCancel()
+        {
+        }
+
+        public void OnClosing()
+        {
+            this.Dispatcher.BeginInvoke(new Action(() => this.CloseActivePage()), null);
+        }
+
+        private void CloseActivePage()
+        {
+            foreach (UserControl control in pagePanel.Children)
+            {
+                IPage page = control as IPage;
+                if (page != null)
+                    page.Close();
+            }
+            pagePanel.Children.Clear();
+        }
+
+        private void Network_Connected(object sender, EventArgs e)
         {
             this.Dispatcher.BeginInvoke(new Action(() => this.UpdateStatus()), null);
         }
 
-        void Network_Disconnected(object sender, EventArgs e)
+        private void Network_Disconnected(object sender, EventArgs e)
         {
             this.Dispatcher.BeginInvoke(new Action(() =>
             {
@@ -175,12 +195,12 @@ namespace Insteon.Mayhem
             }), null);
         }
 
-        void Network_ConnectProgress(object sender, ConnectProgressChangedEventArgs e)
+        private void Network_ConnectProgress(object sender, ConnectProgressChangedEventArgs e)
         {
             this.Dispatcher.BeginInvoke(new Action(() => this.UpdateStatus()), null);
         }
 
-        void InsteonService_ConnectionFailed(object sender, EventArgs e)
+        private void InsteonService_ConnectionFailed(object sender, EventArgs e)
         {
             this.Dispatcher.BeginInvoke(new Action(() => this.UpdateStatus()), null);
         }

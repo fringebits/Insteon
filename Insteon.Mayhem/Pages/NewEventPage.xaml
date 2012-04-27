@@ -5,9 +5,12 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
     xmlns:my="clr-namespace:Insteon.Mayhem.Widgets"
+    xmlns:my1="clr-namespace:Insteon.Mayhem" 
     mc:Ignorable="d" 
     Width="400"
-    Height="268" xmlns:my1="clr-namespace:Insteon.Mayhem" Loaded="UserControl_Loaded">
+    Height="268"
+    Loaded="UserControl_Loaded"
+    >
 
     <Canvas HorizontalAlignment="Left" VerticalAlignment="Top">
         <TextBlock Canvas.Left="12" Canvas.Top="12" Height="110" Name="captionTextBlock" Text="One moment please..." Width="382" TextWrapping="Wrap" Visibility="Visible" />
@@ -33,9 +36,6 @@
             <TextBlock Canvas.Left="311" Canvas.Top="143" Height="16" Text="Working..." Width="83" TextWrapping="Wrap" />
             <my1:SpinningIcon Canvas.Left="289" Canvas.Top="143" Height="16" x:Name="spinningIcon1" Width="16" />
         </Canvas>
-        <!--
-        <my1:SpinningIcon Width="64" Canvas.Left="168" Canvas.Top="102" x:Name="busyIcon" />
-        -->
     </Canvas>
     
 </UserControl>

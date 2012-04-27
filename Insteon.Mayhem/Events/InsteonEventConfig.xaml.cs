@@ -49,5 +49,17 @@ namespace Insteon.Mayhem
         {
             get { return "INSTEON Event"; }
         }
+
+        public override void OnCancel()
+        {
+            pageFrame.OnCancel();
+            base.OnCancel();
+        }
+
+        public override void OnClosing()
+        {
+            pageFrame.OnClosing();
+            base.OnClosing();
+        }
     }
 }

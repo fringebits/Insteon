@@ -49,7 +49,6 @@ namespace Insteon.Mayhem
         }
         protected override void OnDeleted()
         {
-//          InsteonService.UnlinkDevice(data.Group, data.Device);
         }
         protected override void OnEnabling(EnablingEventArgs e)
         {
@@ -60,14 +59,16 @@ namespace Insteon.Mayhem
                 e.Cancel = true;
                 return;
             }
-
+            
+            InsteonService.StartNetwork();
+/*
             if (!InsteonService.VerifyConnection())
             {
                 ErrorLog.AddError(ErrorType.Failure, string.Format("Lost connection to INSTEON network. {0}", InsteonService.SpecificConnection != null ? InsteonService.SpecificConnection.ToString() : string.Empty));
                 e.Cancel = true;
                 return;
             }
-
+*/
             if (!InsteonService.Network.Devices.ContainsKey(address))
                 device = InsteonService.Network.Devices.Add(address, new InsteonIdentity());
             else
@@ -107,35 +108,6 @@ namespace Insteon.Mayhem
                 }
                 if (!device.TryCommand(command))
                     ErrorLog.AddError(ErrorType.Failure, string.Format("Could not send INSTEON command {0} to device {1} due to a problem communicating with the INSTEON controller.", command.ToString(), data.Device));
-
-                /*
-                InsteonControllerGroupCommands command;
-                switch (data.DeviceStatus)
-                {
-                    case InsteonDeviceStatus.On:
-                        command = InsteonControllerGroupCommands.On;
-                        break;
-                    case InsteonDeviceStatus.Off:
-                        command = InsteonControllerGroupCommands.Off;
-                        break;
-                    case InsteonDeviceStatus.FastOn:
-                        command = InsteonControllerGroupCommands.FastOn;
-                        break;
-                    case InsteonDeviceStatus.FastOff:
-                        command = InsteonControllerGroupCommands.FastOff;
-                        break;
-                    case InsteonDeviceStatus.Brighten:
-                        command = InsteonControllerGroupCommands.Brighten;
-                        break;
-                    case InsteonDeviceStatus.Dim:
-                        command = InsteonControllerGroupCommands.Dim;
-                        break;
-                    default:
-                        return;
-                }
-                if (!InsteonService.Network.Controller.TryGroupCommand(command, 0xFF))
-                    ErrorLog.AddError(ErrorType.Failure, string.Format("Could not send INSTEON command {0} to device {1} due to a problem communicating with the INSTEON controller.", command.ToString(), data.Device));
-                */
             }
         }
     }

@@ -6,6 +6,6 @@
     Width="400"
     >
 
-    <my:PageFrame />
+    <my:PageFrame x:Name="pageFrame" />
 
 </src:WpfConfiguration>

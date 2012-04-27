@@ -247,11 +247,11 @@ namespace Insteon.Network
             if (status == EchoStatus.ACK)
             {
                 if (item.Message == null)
-                    item.MessageEvent.WaitOne(Constants.messageTimeout);
+                    item.MessageEvent.WaitOne(Constants.sendReceiveTimeout);
                 if (item.Message != null)
                     properties = item.Message.Properties;
                 else
-                    Log.WriteLine("ERROR: Did not receive expected message reply - SentMessage='{0}', ExpectedReceiveMessageId={1:X2}, Timeout={2}ms", Utilities.ByteArrayToString(message), receiveMessageId, Constants.messageTimeout);
+                    Log.WriteLine("ERROR: Did not receive expected message reply; SentMessage='{0}', ExpectedReceiveMessageId={1:X2}, Timeout={2}ms", Utilities.ByteArrayToString(message), receiveMessageId, Constants.sendReceiveTimeout);
             }
 
             lock (waitList)
@@ -302,13 +302,13 @@ namespace Insteon.Network
             {
                 if (!IsDuplicateMessage(message))
                 {
-                    Log.WriteLine("Message processed: {0} ...\r\n{1}", Utilities.ByteArrayToString(data, offset, count), message.ToString("Log"));
+                    Log.WriteLine("PROCESSOR: Message '{0}' processed...\r\n{1}", Utilities.ByteArrayToString(data, offset, count), message.ToString("Log"));
                     OnMessage(message);
                     UpdateWaitItems(message);
                 }
                 else
                 {
-                    Log.WriteLine("Ignoring duplicate message: {0} ...\r\n{1}", Utilities.ByteArrayToString(data, offset, count), message.ToString("Log"));
+                    Log.WriteLine("PROCESSOR: Message '{0}' duplicate ignored...\r\n{1}", Utilities.ByteArrayToString(data, offset, count), message.ToString("Log"));
                 }
                 return true;
             }
@@ -325,7 +325,7 @@ namespace Insteon.Network
             {
                 if (InsteonMessageProcessor.ProcessMessage(data, offset, out count, out echoMessage))
                 {
-                    Log.WriteLine("Echo processed: {0} ...\r\n{1}", Utilities.ByteArrayToString(data, offset, count), echoMessage.ToString("Log"));
+                    Log.WriteLine("PROCESSOR: Echo '{0}' processed...\r\n{1}", Utilities.ByteArrayToString(data, offset, count), echoMessage.ToString("Log"));
                     return true;
                 }
                 else
@@ -336,12 +336,11 @@ namespace Insteon.Network
             else if (Utilities.ArraySequenceEquals(sentMessage, message))
             {
                 count = sentMessage.Length;
-                Log.WriteLine("Echo matched: {0}", Utilities.ByteArrayToString(data, offset, count));
+                Log.WriteLine("PROCESSOR: Echo '{0}' matched", Utilities.ByteArrayToString(data, offset, count));
                 return true;
             }
             else
             {
-                Log.WriteLine("Echo mismatch");
                 count = 0;
                 return false;
             }

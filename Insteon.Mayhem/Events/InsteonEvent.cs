@@ -53,7 +53,6 @@ namespace Insteon.Mayhem
         }
         protected override void OnDeleted()
         {
-//          InsteonService.UnlinkDevice(data.Group, data.Device);
         }        
         protected override void OnEnabling(EnablingEventArgs e)
         {
@@ -64,14 +63,16 @@ namespace Insteon.Mayhem
                 e.Cancel = true;
                 return;
             }
-
+            
+            InsteonService.StartNetwork();
+/*
             if (!InsteonService.VerifyConnection())
             {
                 ErrorLog.AddError(ErrorType.Failure, string.Format("Lost connection to INSTEON network. {0}", InsteonService.SpecificConnection != null ? InsteonService.SpecificConnection.ToString() : string.Empty));
                 e.Cancel = true;
                 return;
             }
-
+*/
             if (!InsteonService.Network.Devices.ContainsKey(address))
                 device = InsteonService.Network.Devices.Add(address, new InsteonIdentity());
             else

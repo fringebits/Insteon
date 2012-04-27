@@ -151,7 +151,7 @@ namespace Insteon.Network
         {
             byte cmd = (byte)command;
             byte[] message = { 0x61, group, cmd, value };
-            Log.WriteLine("Controller.GroupCommand(command:{0}, group:{1:X2}, value:{2:X2})", command.ToString(), group, value);
+            Log.WriteLine("Controller {0} GroupCommand(command:{1}, group:{2:X2}, value:{3:X2})", Address.ToString(), command.ToString(), group, value);
             network.Messenger.Send(message);
         }
 
@@ -219,7 +219,7 @@ namespace Insteon.Network
             IsInLinkingMode = false;
             linkingMode = null;
             byte[] message = { 0x65 };
-            Log.WriteLine("Controller.CancelLinkMode");
+            Log.WriteLine("Controller {0} CancelLinkMode", Address.ToString());
             return network.Messenger.TrySend(message) == EchoStatus.ACK;
         }
 
@@ -238,7 +238,7 @@ namespace Insteon.Network
         {
             linkingMode = mode;
             byte[] message = { 0x64, (byte)mode, group };
-            Log.WriteLine("Controller.EnterLinkMode(mode:{0}, group:{1:X2})", mode.ToString(), group);
+            Log.WriteLine("Controller {0} EnterLinkMode(mode:{1}, group:{2:X2})", Address.ToString(), mode.ToString(), group);
             if (network.Messenger.TrySend(message) != EchoStatus.ACK)
                 return false;
             timer.Start();
@@ -261,12 +261,12 @@ namespace Insteon.Network
             const int retryCount = 3;
             for (int retry = 0; retry < retryCount; ++retry)
             {
-                Log.WriteLine("WARNING: Controller.GetLinks failed, retry {0} of {1}", retry, retryCount);
+                Log.WriteLine("WARNING: Controller {0} GetLinks failed, retry {1} of {2}", Address.ToString(), retry, retryCount);
                 if (TryGetLinksInternal(out links))
                     return true;
             }
 
-            Log.WriteLine("ERROR: Controller.GetLinks failed");
+            Log.WriteLine("ERROR: Controller {0} GetLinks failed", Address.ToString());
             return false;
         }
 
@@ -277,20 +277,20 @@ namespace Insteon.Network
             Dictionary<PropertyKey, int> properties;
             EchoStatus status = EchoStatus.None;
 
-            Log.WriteLine("Controller.GetLinks");
+            Log.WriteLine("Controller {0} GetLinks", Address.ToString());
             byte[] message1 = { 0x69 };
             status = network.Messenger.TrySendReceive(message1, false, 0x57, out properties);
             if (status == EchoStatus.NAK)
             {
                 links = new InsteonDeviceLinkRecord[0]; // empty link table
-                Log.WriteLine("Controller.GetLinks returned no links, empty link table");
+                Log.WriteLine("Controller {0} GetLinks returned no links, empty link table", Address.ToString());
                 return true;
             }
             else if (status == EchoStatus.ACK)
             {
                 if (properties == null)
                 {
-                    Log.WriteLine("ERROR: Null properties object");
+                    Log.WriteLine("ERROR: Controller {0} null properties object", Address.ToString());
                     return false;
                 }
                 list.Add(new InsteonDeviceLinkRecord(properties));
@@ -300,14 +300,14 @@ namespace Insteon.Network
                 return false; // echo was not ACK or NAK
             }
 
-            Log.WriteLine("Controller.GetLinks");
+            Log.WriteLine("Controller {0} GetLinks", Address.ToString());
             byte[] message2 = { 0x6A };
             status = network.Messenger.TrySendReceive(message2, false, 0x57, out properties);
             while (status == EchoStatus.ACK)
             {
                 if (properties == null)
                 {
-                    Log.WriteLine("ERROR: Null properties object");
+                    Log.WriteLine("ERROR: Controller {0} null properties object", Address.ToString());
                     return false;
                 }
                 list.Add(new InsteonDeviceLinkRecord(properties));
@@ -318,7 +318,7 @@ namespace Insteon.Network
                 return false; // echo was not ACK or NAK
 
             links = list.ToArray();
-            Log.WriteLine("Controller.GetLinks returned {0} links", links.Length);
+            Log.WriteLine("Controller {0} GetLinks returned {1} links", Address.ToString(), links.Length);
             return true;
         }
 
@@ -357,7 +357,7 @@ namespace Insteon.Network
         {
             byte cmd = (byte)command;
             byte[] message = { 0x61, group, cmd, value };
-            Log.WriteLine("Controller.GroupCommand(command:{0}, group:{1:X2}, value:{2:X2})", command.ToString(), group, value);
+            Log.WriteLine("Controller {0} GroupCommand(command:{1}, group:{2:X2}, value:{3:X2})", Address.ToString(), command.ToString(), group, value);
             return network.Messenger.TrySend(message) == EchoStatus.ACK;
         }
     }

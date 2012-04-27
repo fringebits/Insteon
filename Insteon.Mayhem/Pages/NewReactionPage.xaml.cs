@@ -33,14 +33,13 @@ using Insteon.Network;
 
 namespace Insteon.Mayhem
 {
-    public partial class NewReactionPage : UserControl
+    public partial class NewReactionPage : UserControl, IPage
     {
         private InsteonReactionConfig config = null;
 
         public NewReactionPage()
         {
             InitializeComponent();
-            InsteonService.GetAvailableGroupCompleted += InsteonService_GetAvailableGroupCompleted;
         }
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
@@ -49,14 +48,13 @@ namespace Insteon.Mayhem
                 return;
 
             config = UIHelper.FindParent<InsteonReactionConfig>(this);
+            InsteonService.GetAvailableGroupCompleted += InsteonService_GetAvailableGroupCompleted;
             InsteonService.BeginGetAvailableGroup();
         }
 
-        private void UserControl_Unloaded(object sender, RoutedEventArgs e)
+        public void Close()
         {
-            if (System.ComponentModel.DesignerProperties.GetIsInDesignMode(this))
-                return;
-
+            InsteonService.GetAvailableGroupCompleted -= InsteonService_GetAvailableGroupCompleted;
             if (InsteonService.Network.Controller.IsInLinkingMode)
                 InsteonService.Network.Controller.TryCancelLinkMode();
         }
@@ -77,8 +75,6 @@ namespace Insteon.Mayhem
         {
             captionTextBlock.Text = message;
             animation.Visibility = Visibility.Hidden;
-//          busyIcon.Visibility = Visibility.Hidden;
-//          helpBubble.Visibility = Visibility.Hidden;
         }
 
         private void OnDeviceLinked(string address)
@@ -95,14 +91,6 @@ namespace Insteon.Mayhem
                 frame.SetPage(new ManageReactionPage());
         }
 
-        private void OnDeviceLinkedToOff()
-        {
-            InsteonService.Network.Controller.DeviceLinked -= PlmDevice_DeviceLinked;
-            InsteonService.Network.Controller.DeviceLinkTimeout -= PlmDevice_DeviceLinkTimeout;
-//          helpBubble.Visibility = Visibility.Visible;
-            EnterLinkMode();
-        }
-
         void OnDeviceLinkTimeout()
         {
             InsteonService.Network.Controller.DeviceLinked -= PlmDevice_DeviceLinked;
@@ -111,21 +99,11 @@ namespace Insteon.Mayhem
             captionTextBlock.Text = "Are you still there?";
             retryButton.Visibility = Visibility.Visible;
             animation.Visibility = Visibility.Hidden;
-//          helpBubble.Visibility = Visibility.Hidden;
         }
 
         private void PlmDevice_DeviceLinked(object sender, InsteonDeviceEventArgs data)
         {
             this.Dispatcher.BeginInvoke(new Action(() => this.OnDeviceLinked(data.Device.Address.ToString())), null);
-/*
-            byte onLevel;
-            if (!data.Device.TryGetOnLevel(out onLevel))
-                this.Dispatcher.BeginInvoke(new Action(() => SetError("Sorry, there was a problem communicating with the INSTEON controller.\r\n\r\nIf this problem persists, please try unplugging your INSTEON controller from the wall and plugging it back in.")), null);
-            else if (onLevel > 24)
-                this.Dispatcher.BeginInvoke(new Action(() => this.OnDeviceLinked(data.Device.Address.ToString())), null);
-            else
-                this.Dispatcher.BeginInvoke(new Action(() => this.OnDeviceLinkedToOff()), null);
-*/
         }
 
         void PlmDevice_DeviceLinkTimeout(object sender, EventArgs e)
@@ -141,7 +119,6 @@ namespace Insteon.Mayhem
                 {
                     config.DataItem.Group = (byte)e.UserState;
                     captionTextBlock.Text = string.Empty;
-//                  busyIcon.Visibility = Visibility.Hidden;
                     animation.Visibility = Visibility.Visible;
                     EnterLinkMode();
                 }), null);

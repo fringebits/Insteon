@@ -68,7 +68,7 @@ namespace Insteon.Network
 
             try
             {
-                for (int i = 1; i <= Constants.retryCount; ++i)
+                for (int i = 1; i <= Constants.negotiateRetries; ++i)
                 {
                     Log.WriteLine("TX: {0}", Utilities.ByteArrayToString(input));
                     port.Write(input);
@@ -160,7 +160,7 @@ namespace Insteon.Network
                     if (data[offset++] == 0x02)
                     {
                         if (last != offset - 1)
-                            Log.WriteLine("WARNING: Skipping {0} bytes to '{1}', discarded '{2}'", offset - last, Utilities.ByteArrayToString(data, offset - 1), Utilities.ByteArrayToString(data, 0, offset));
+                            Log.WriteLine("WARNING: Skipping {0} bytes to '{1}', discarded '{2}'", offset - last, Utilities.ByteArrayToString(data, offset - 1), Utilities.ByteArrayToString(data, 0, offset - 1));
                         
                         // loop until message successfully processed or until there is no more data available on the serial port...
                         while (true) 
@@ -209,7 +209,7 @@ namespace Insteon.Network
             // if the first byte is a NAK (15) then return a NAK and add whatever additional data was read to the buffer
             if (data[0] == 0x15)
             {
-                Log.WriteLine("RX: {0} [NAK]", Utilities.ByteArrayToString(data));
+                Log.WriteLine("RX: {0}", Utilities.ByteArrayToString(data));
                 if (data.Length > 1)
                 {
                     int remainingCount = data.Length - 1;
@@ -239,7 +239,7 @@ namespace Insteon.Network
 
             // warn about any skipped bytes
             if (offset > 1)
-                Log.WriteLine("WARNING: Skipping {0} bytes to '{1}', discarded '{2}'", offset - 1, Utilities.ByteArrayToString(data, offset - 1), Utilities.ByteArrayToString(data, 0, offset));
+                Log.WriteLine("WARNING: Skipping {0} bytes to '{1}', discarded '{2}'", offset - 1, Utilities.ByteArrayToString(data, offset - 1), Utilities.ByteArrayToString(data, 0, offset - 1));
 
             // process the echo and decode the trailing status byte
             int count;
@@ -260,25 +260,25 @@ namespace Insteon.Network
                 if (result == 0x06)
                 {
                     messageProcessor.SetEchoStatus(EchoStatus.ACK);
-                    Log.WriteLine("RX: {0} [ACK]", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for MESSAGE START byte (02), +1 for ACK byte (06)
+                    Log.WriteLine("PLM: {0} ACK", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for MESSAGE START byte (02), +1 for ACK byte (06)
                     return EchoStatus.ACK;
                 }
                 else if (result == 0x15)
                 {
-                    Log.WriteLine("RX: {0} [NAK]", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for MESSAGE START byte (02), +1 for NAK byte (15)
+                    Log.WriteLine("PLM: {0} NAK", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for MESSAGE START byte (02), +1 for NAK byte (15)
                     messageProcessor.SetEchoStatus(EchoStatus.NAK);
                     return EchoStatus.NAK;
                 }
                 else
                 {
-                    Log.WriteLine("RX: {0} ERROR - Unknown trailing byte", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for MESSAGE START byte (02), +1 for unknown byte
+                    Log.WriteLine("PLM: {0} Unknown trailing byte", Utilities.ByteArrayToString(data, offset - 1, count + 2)); // +1 for MESSAGE START byte (02), +1 for unknown byte
                     messageProcessor.SetEchoStatus(EchoStatus.Unknown);
                     return EchoStatus.Unknown;
                 }
             }
             else
             {
-                Log.WriteLine("RX: {0} ERROR - Echo mismatch", Utilities.ByteArrayToString(data, offset - 1));
+                Log.WriteLine("PLM: {0} Echo mismatch", Utilities.ByteArrayToString(data, offset - 1));
                 return EchoStatus.Unknown;
             }
         }
@@ -297,9 +297,9 @@ namespace Insteon.Network
             if (expectedBytes > 0)
             {
                 int retryCount = 0;
-                while (list.Count == 0 && ++retryCount <= Constants.retryCount)
+                while (list.Count == 0 && ++retryCount <= Constants.readDataRetries)
                 {
-                    port.Wait(Constants.retryTime);
+                    port.Wait(Constants.readDataRetryTime);
                     data = port.ReadAll();
                     list.AddRange(data);
                 }
@@ -308,7 +308,7 @@ namespace Insteon.Network
                 {
                     do
                     {
-                        port.Wait(Constants.readTime);
+                        port.Wait(Constants.readDataTimeout);
                         data = port.ReadAll();
                         list.AddRange(data);
                     } while (data.Length > 0);
@@ -319,7 +319,12 @@ namespace Insteon.Network
                     return list.ToArray(); // caller will log the NAK
 
                 if (list.Count < expectedBytes)
-                    Log.WriteLine("WARNING: Could not read the expected number of bytes from the serial port - BytesRead='{0}', Expected={1}, Received={2}, Timeout={3}ms", Utilities.ByteArrayToString(list.ToArray()), expectedBytes, list.Count, Constants.readTime);
+                {
+                    if (list.Count > 0)
+                        Log.WriteLine("WARNING: Could not read the expected number of bytes from the serial port; BytesRead='{0}', Expected={1}, Received={2}, Timeout={3}ms", Utilities.ByteArrayToString(list.ToArray()), expectedBytes, list.Count, Constants.readDataTimeout);
+                    else
+                        Log.WriteLine("WARNING: Could not read the expected number of bytes from the serial port; Expected={0}, Received=0, Timeout={1}ms", expectedBytes, Constants.readDataTimeout);
+                }
             }
                 
             return list.ToArray();
@@ -341,12 +346,17 @@ namespace Insteon.Network
                 message.CopyTo(input, 1);
 
                 int retry = -1;
-                while (retry++ < Constants.retryCount)
+                while (retry++ < Constants.sendMessageRetries)
                 {
                     if (retry <= 0)
+                    {
                         Log.WriteLine("TX: {0}", Utilities.ByteArrayToString(input));
+                    }
                     else
-                        Log.WriteLine("TX: {0} - RETRY {1} of {2}", Utilities.ByteArrayToString(input), retry, Constants.retryCount);
+                    {
+                        Thread.Sleep(retry * Constants.sendMessageWaitTime);
+                        Log.WriteLine("TX: {0} - RETRY {1} of {2}", Utilities.ByteArrayToString(input), retry, Constants.sendMessageRetries);
+                    }
                     port.Write(input);
                     status = ProcessEcho(echoLength + 2); // +1 for leading 02 byte, +1 for trailing ACK/NAK byte
                     if (status == EchoStatus.ACK)
@@ -355,7 +365,7 @@ namespace Insteon.Network
                         return status;
                 }
 
-                Log.WriteLine("Send failed after {0} retries", Constants.retryCount);
+                Log.WriteLine("Send failed after {0} retries", Constants.sendMessageRetries);
                 return status;
             }
             finally
