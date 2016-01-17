@@ -14,15 +14,13 @@
 // <author>Dave Templin</author>
 // <email>info@insteon.net</email>
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Reflection;
-using System.Text;
-
 namespace Insteon.Network
 {
+    using System;
+    using System.Diagnostics;
+    using System.IO;
+    using System.Reflection;
+
     internal static class Log
     {
         private static readonly object sync = new object();

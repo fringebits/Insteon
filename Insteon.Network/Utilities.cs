@@ -31,7 +31,7 @@ namespace Insteon.Network
         {
             if (count > data.Length - offset)
                 count = data.Length - offset;
-            byte[] result = new byte[count];
+            var result = new byte[count];
             Array.Copy(data, offset, result, 0, count);
             return result;
         }
@@ -39,7 +39,7 @@ namespace Insteon.Network
         public static bool ArraySequenceEquals(byte[] a, byte[] b)
         {
             if (a != null && b != null && a.Length == b.Length)
-                for (int i = 0; i < a.Length; ++i)
+                for (var i = 0; i < a.Length; ++i)
                     if (a[i] != b[i])
                         return false;
             return true;
@@ -57,11 +57,21 @@ namespace Insteon.Network
 
         public static string ByteArrayToString(byte[] data, int offset, int count)
         {
-            StringBuilder sb = new StringBuilder();
-            for (int i = offset; i < offset + count; ++i)
-                if (i < data.Length)
-                    sb.AppendFormat("{1}{0:X2}", data[i], i == offset ? "" : " ");
-            return sb.ToString();
+            var list = new List<string>();
+            
+            for (var ii = offset; ii < Math.Max(offset + count, data.Length); ++ii)
+            {
+                if (ii == 0 && data[ii] == 0x02)
+                {
+                    list.Add("STX");
+                }
+                else
+                {
+                    list.Add($"{data[ii]:X2}");
+                }
+            }
+
+            return string.Join(" ", list.ToArray());
         }
 
         public static string FormatHex(int value)
@@ -78,9 +88,9 @@ namespace Insteon.Network
 
         public static string FormatProperties(Dictionary<PropertyKey, int> properties, bool multiline, bool filterMessageFlags)
         {
-            bool first = true;
-            StringBuilder sb = new StringBuilder();
-            foreach (KeyValuePair<PropertyKey, int> item in properties)
+            var first = true;
+            var sb = new StringBuilder();
+            foreach (var item in properties)
             {
                 if (!filterMessageFlags || (item.Key != PropertyKey.MessageFlagsRemainingHops && item.Key != PropertyKey.MessageFlagsMaxHops))
                 {

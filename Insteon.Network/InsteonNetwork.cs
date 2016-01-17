@@ -14,22 +14,23 @@
 // <author>Dave Templin</author>
 // <email>info@insteon.net</email>
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.IO;
-using System.IO.Ports;
-using System.Text;
-
 namespace Insteon.Network
 {
+    using System;
+    using System.Collections.Generic;
+    using System.ComponentModel;
+    using System.IO;
+    using System.IO.Ports;
+    using System.Text;
+
     /// <summary>
     /// Represents the top level INSTEON network, including the set of known INSTEON devices and the controller device.
     /// </summary>
     public class InsteonNetwork
     {
-        internal InsteonMessenger Messenger { get; private set; }
-        private List<InsteonConnection> connections = null;
+        internal InsteonMessenger Messenger { get; }
+
+        private List<InsteonConnection> connections;
 
         /// <summary>
         /// Invoked when a connection to an INSTEON network is established.
@@ -66,8 +67,8 @@ namespace Insteon.Network
         /// </summary>
         public InsteonNetwork()
         {
-            Devices = new InsteonDeviceList(this);
-            Messenger = new InsteonMessenger(this);
+            this.Devices = new InsteonDeviceList(this);
+            this.Messenger = new InsteonMessenger(this);
         }
 
         /// <summary>
@@ -81,11 +82,11 @@ namespace Insteon.Network
         /// <param name="connection">Specifies the connection to the INSTEON powerline controller device, which can accessed serially or over the network. Examples: "serial: COM1" or "net: 192.168.2.5".</param>
         public void Connect(InsteonConnection connection)
         {
-            Messenger.Connect(connection);
-            Connection = connection;
-            Controller = new InsteonController(this);
-            OnConnected();
-            LastConnectStatus = null;
+            this.Messenger.Connect(connection);
+            this.Connection = connection;
+            this.Controller = new InsteonController(this);
+            this.OnConnected();
+            this.LastConnectStatus = null;
         }
 
         /// <summary>
@@ -97,9 +98,9 @@ namespace Insteon.Network
         public void Close()
         {
             Log.WriteLine("Closing INSTEON network...");
-            OnClosing();
-            Messenger.Close();
-            Connection = null;
+            this.OnClosing();
+            this.Messenger.Close();
+            this.Connection = null;
             Log.WriteLine("INSTEON network closed");
         }
 
@@ -110,8 +111,8 @@ namespace Insteon.Network
 
         internal void Disconnect()
         {
-            Connection = null;
-            OnDisconnected();
+            this.Connection = null;
+            this.OnDisconnected();
         }
 
         /// <summary>
@@ -126,11 +127,14 @@ namespace Insteon.Network
         /// </remarks>
         public InsteonConnection[] GetAvailableConnections(bool refresh)
         {
-            List<InsteonConnection> list = new List<InsteonConnection>();
-            InsteonConnection[] networkConnections = GetAvailableNetworkConnections(refresh);
+            var list = new List<InsteonConnection>();
+            var networkConnections = this.GetAvailableNetworkConnections(refresh);
             if (networkConnections != null)
+            {
                 list.AddRange(networkConnections);
-            InsteonConnection[] serialConnections = GetAvailableSerialConnections();
+            }
+
+            var serialConnections = this.GetAvailableSerialConnections();
             list.AddRange(serialConnections);
             return list.ToArray();
         }
@@ -147,33 +151,33 @@ namespace Insteon.Network
         /// </remarks>
         public InsteonConnection[] GetAvailableNetworkConnections(bool refresh)
         {
-            if (connections == null || refresh)
+            if (this.connections == null || refresh)
             {
-                connections = new List<InsteonConnection>();
+                this.connections = new List<InsteonConnection>();
 
-                OnConnectProgress(5, "Retrieving list from smartlinc.smarthome.com..."); // 5% progress
-                if (LastConnectStatus.Cancel)
+                this.OnConnectProgress(5, "Retrieving list from smartlinc.smarthome.com..."); // 5% progress
+                if (this.LastConnectStatus.Cancel)
                 {
-                    connections = null;
+                    this.connections = null;
                     return null;
                 }
                 
-                List<SmartLincInfo> list = new List<SmartLincInfo>();
+                var list = new List<SmartLincInfo>();
                 list.AddRange(SmartLincFinder.GetRegisteredSmartLincs());
-                foreach (SmartLincInfo item in list)
+                foreach (var item in list)
                 {
-                    OnConnectProgress(40 * list.IndexOf(item) / list.Count + 10, string.Format("Accessing SmartLinc {0} of {1} at {2}", list.IndexOf(item) + 1, list.Count, item.Uri.Host));  // 10% to 50% progress
-                    if (LastConnectStatus.Cancel)
+                    this.OnConnectProgress(40 * list.IndexOf(item) / list.Count + 10, string.Format("Accessing SmartLinc {0} of {1} at {2}", list.IndexOf(item) + 1, list.Count, item.Uri.Host));  // 10% to 50% progress
+                    if (this.LastConnectStatus.Cancel)
                     {
-                        connections = null;
+                        this.connections = null;
                         return null;
                     }
 
-                    string name = SmartLincFinder.GetSmartLincName(item.Uri.AbsoluteUri);
-                    connections.Add(new InsteonConnection(InsteonConnectionType.Net, item.Uri.Host, name, item.InsteonAddress));
+                    var name = SmartLincFinder.GetSmartLincName(item.Uri.AbsoluteUri);
+                    this.connections.Add(new InsteonConnection(InsteonConnectionType.Net, item.Uri.Host, name, item.InsteonAddress));
                 }
             }
-            return connections.ToArray();
+            return this.connections.ToArray();
         }
 
         /// <summary>
@@ -185,7 +189,7 @@ namespace Insteon.Network
         /// </remarks>
         public InsteonConnection[] GetAvailableSerialConnections()
         {
-            List<InsteonConnection> list = new List<InsteonConnection>();
+            var list = new List<InsteonConnection>();
             string[] ports = null;
             try
             {
@@ -194,19 +198,23 @@ namespace Insteon.Network
             catch (Win32Exception)
             {
             }
+
             if (ports != null)
             {
                 Array.Sort(ports);
-                foreach (string port in ports)
+                foreach (var port in ports)
+                {
                     list.Add(new InsteonConnection(InsteonConnectionType.Serial, port));
+                }
             }
+
             return list.ToArray();
         }
 
         ///<summary>
         /// Determines whether the connection to the INSTEON network is active.
         /// </summary>
-        public bool IsConnected { get { return Connection != null; } }
+        public bool IsConnected { get { return this.Connection != null; } }
 
         /// <summary>
         /// Provides the last connect status result.
@@ -215,27 +223,35 @@ namespace Insteon.Network
 
         private void OnConnected()
         {
-            if (Connected != null)
-                Connected(this, EventArgs.Empty);
+            if (this.Connected != null)
+            {
+                this.Connected(this, EventArgs.Empty);
+            }
         }
 
         private void OnConnectProgress(int progressPercentage, string status)
         {
-            LastConnectStatus = new ConnectProgressChangedEventArgs(progressPercentage, status);
-            if (ConnectProgress != null)
-                ConnectProgress(this, LastConnectStatus);
+            this.LastConnectStatus = new ConnectProgressChangedEventArgs(progressPercentage, status);
+            if (this.ConnectProgress != null)
+            {
+                this.ConnectProgress(this, this.LastConnectStatus);
+            }
         }
 
         internal void OnDisconnected()
         {
-            if (Disconnected != null)
-                Disconnected(this, EventArgs.Empty);
+            if (this.Disconnected != null)
+            {
+                this.Disconnected(this, EventArgs.Empty);
+            }
         }
 
         private void OnClosing()
         {
-            if (Closing != null)
-                Closing(this, EventArgs.Empty);
+            if (this.Closing != null)
+            {
+                this.Closing(this, EventArgs.Empty);
+            }
         }
 
         /// <summary>
@@ -246,7 +262,9 @@ namespace Insteon.Network
         public static void SetLogPath(string path)
         {
             if (!Directory.Exists(path))
+            {
                 throw new DirectoryNotFoundException();
+            }
             Log.Open(path);
         }
 
@@ -263,14 +281,19 @@ namespace Insteon.Network
         /// </remarks>
         public bool TryConnect()
         {
-            InsteonConnection[] connections = GetAvailableConnections(true);
-            if (LastConnectStatus.Cancel || connections == null || connections.Length <= 0)
-                return false;
+            var connections = this.GetAvailableConnections(true);
 
-            foreach (InsteonConnection connection in connections)                
+            if (this.LastConnectStatus.Cancel || connections == null || connections.Length <= 0)
+            {
+                return false;
+            }
+
+            foreach (var connection in connections)
+            {
                 Log.WriteLine("Available connection '{0}'", connection.ToString());
-            
-            return TryConnect(connections);
+            }
+
+            return this.TryConnect(connections);
         }
 
         /// <summary>
@@ -283,13 +306,15 @@ namespace Insteon.Network
         /// </remarks>
         public bool TryConnect(InsteonConnection connection)
         {
-            if (!Messenger.TryConnect(connection))
+            if (!this.Messenger.TryConnect(connection))
+            {
                 return false;
+            }
 
-            Connection = connection;
-            Controller = new InsteonController(this);
-            OnConnected();
-            LastConnectStatus = null;
+            this.Connection = connection;
+            this.Controller = new InsteonController(this);
+            this.OnConnected();
+            this.LastConnectStatus = null;
 
             return true;
         }
@@ -308,25 +333,36 @@ namespace Insteon.Network
         {
             if (connections != null)
             {
-                List<InsteonConnection> list = new List<InsteonConnection>();
+                var list = new List<InsteonConnection>();
                 list.AddRange(connections);
-                foreach (InsteonConnection connection in connections)
+
+                foreach (var connection in connections)
                 {
-                    StringBuilder sb = new StringBuilder();
+                    var sb = new StringBuilder();
                     sb.AppendFormat("Trying connection {0} of {1} on {2}", list.IndexOf(connection) + 1, list.Count, connection.Value);
                     if (connection.Name != connection.Value)
+                    {
                         sb.AppendFormat(" '{0}'", connection.Name);
+                    }
+
                     if (!connection.Address.IsEmpty)
+                    {
                         sb.AppendFormat("  ({0})", connection.Address.ToString());
+                    }
 
-                    OnConnectProgress(50 * list.IndexOf(connection) / list.Count + 50, sb.ToString()); // 50% to 100% progress
-                    if (LastConnectStatus.Cancel)
+                    this.OnConnectProgress(50 * list.IndexOf(connection) / list.Count + 50, sb.ToString()); // 50% to 100% progress
+                    if (this.LastConnectStatus.Cancel)
+                    {
                         return false;
+                    }
 
-                    if (TryConnect(connection))
+                    if (this.TryConnect(connection))
+                    {
                         return true;
+                    }
                 }
             }
+
             return false;
         }
 
@@ -340,7 +376,7 @@ namespace Insteon.Network
         /// </remarks>
         public bool VerifyConnection()
         {
-            return Messenger.VerifyConnection();
+            return this.Messenger.VerifyConnection();
         }
     }
 }

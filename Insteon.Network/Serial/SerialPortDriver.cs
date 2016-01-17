@@ -25,9 +25,9 @@ namespace Insteon.Network.Serial
     // Provides an implementation of the serial communication interface adapting to an INSTEON controller device over a local serial connection.
     internal class SerialPortDriver : ISerialPort, IDisposable
     {
-        private SerialPort port = null;
+        private SerialPort port;
         private readonly AutoResetEvent wait = new AutoResetEvent(false);
-        private DataAvailable notify = null;
+        private DataAvailable notify;
 
         public SerialPortDriver(string name)
         {

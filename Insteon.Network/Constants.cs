@@ -35,7 +35,7 @@ namespace Insteon.Network
         public const int readDataTimeout        = 1000;  // maximum amount of time to wait for additional data when reading data from the serial port
         public const int sendMessageRetries     = 5;     // number of times to retry sending a message
         public const int sendMessageWaitTime    = 100;   // amount of time to wait after failing to send a message before retrying, note time is multiplied on each retry 1x, 2x, 3x, ... up to sendMessageRetries times
-        public const int sendReceiveTimeout     = 2000;  // timeout to receive expected reply from a blocking send/receive message such as a Controller.GetLinks or a Device.GetOnLevel
+        public const int sendReceiveTimeout     = 3000;  // timeout to receive expected reply from a blocking send/receive message such as a Controller.GetLinks or a Device.GetOnLevel
         public const int webRequestTimeout      = 5000;  // timeout for web requests to smartlinc.smarthome.com and for accessing SmartLinc devices over the local network
     }
 }

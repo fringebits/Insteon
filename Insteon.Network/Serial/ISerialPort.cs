@@ -14,10 +14,6 @@
 // <author>Dave Templin</author>
 // <email>info@insteon.net</email>
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace Insteon.Network.Serial
 {
     // Provides an abstract serial communication interface to an INSTEON controller device.
@@ -30,5 +26,6 @@ namespace Insteon.Network.Serial
         void Write(byte[] data);
         void Wait(int timeout);
     }
+
     internal delegate void DataAvailable();
 }

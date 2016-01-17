@@ -33,6 +33,7 @@ namespace Insteon.Network
         /// Gets a value that indicates the status of the INSTEON device.
         /// </summary>
         public InsteonDeviceStatus DeviceStatus { get; private set; }
+
         internal InsteonDeviceStatusChangedEventArgs(InsteonDevice device, InsteonDeviceStatus status)
         {
             this.Device = device;

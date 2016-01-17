@@ -14,15 +14,13 @@
 // <author>Dave Templin</author>
 // <email>info@insteon.net</email>
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Text;
-using System.Threading;
-
 namespace Insteon.Network
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Threading;
+
     /// <summary>
     /// Represents an individual INSTEON device on the network.
     /// </summary>
@@ -58,7 +56,7 @@ namespace Insteon.Network
             this.network = network;
             this.Address = address;
             this.Identity = identity;
-            this.ackTimer = new Timer(new TimerCallback(PendingCommandTimerCallback), null, Timeout.Infinite, Constants.deviceAckTimeout);
+            this.ackTimer = new Timer(new TimerCallback(this.PendingCommandTimerCallback), null, Timeout.Infinite, Constants.deviceAckTimeout);
         }
 
         /// <summary>
@@ -83,9 +81,9 @@ namespace Insteon.Network
         public void Command(InsteonDeviceCommands command)
         {
             if (command == InsteonDeviceCommands.On)
-                Command(command, 0xFF);
+                this.Command(command, 0xFF);
             else
-                Command(command, 0x00);
+                this.Command(command, 0x00);
         }
 
         /// <summary>
@@ -100,8 +98,8 @@ namespace Insteon.Network
         /// <param name="value">A parameter value required by some commands.</param>
         public void Command(InsteonDeviceCommands command, byte value)
         {
-            if (!TryCommand(command, value))
-                throw new IOException(string.Format("Failed to send command '{0}' for device '{1}'", command.ToString(), Address.ToString()));
+            if (!this.TryCommand(command, value))
+                throw new IOException(string.Format("Failed to send command '{0}' for device '{1}'", command.ToString(), this.Address.ToString()));
         }
 
         /// <summary>
@@ -113,8 +111,8 @@ namespace Insteon.Network
         /// </remarks>
         public InsteonDeviceCommands[] GetCommands()
         {
-            List<InsteonDeviceCommands> commands = new List<InsteonDeviceCommands>();
-            switch (Identity.DevCat)
+            var commands = new List<InsteonDeviceCommands>();
+            switch (this.Identity.DevCat)
             {
                 case 0x01: // SwitchLinc Dimmer, LampLinc, OutletLinc Dimmer, KeypadLinc Dimmer, ...
                     commands.Add(InsteonDeviceCommands.On);
@@ -156,8 +154,11 @@ namespace Insteon.Network
         public byte GetOnLevel()
         {
             byte value;
-            if (!TryGetOnLevel(out value))
+            if (!this.TryGetOnLevel(out value))
+            {
                 throw new IOException();
+            }
+
             return value;
         }
 
@@ -178,40 +179,40 @@ namespace Insteon.Network
         public void Identify()
         {
             this.Identity = new InsteonIdentity();
-            Command(InsteonDeviceCommands.IDRequest);
+            this.Command(InsteonDeviceCommands.IDRequest);
         }
 
         private void OnDeviceCommandTimeout()
         {
-            if (DeviceCommandTimeout != null)
-                DeviceCommandTimeout(this, new InsteonDeviceEventArgs(this));
-            network.Devices.OnDeviceCommandTimeout(this);
+            if (this.DeviceCommandTimeout != null)
+                this.DeviceCommandTimeout(this, new InsteonDeviceEventArgs(this));
+            this.network.Devices.OnDeviceCommandTimeout(this);
         }
 
         private void OnDeviceIdentified()
         {
-            if (DeviceIdentified != null)
-                DeviceIdentified(this, new InsteonDeviceEventArgs(this));
-            network.Devices.OnDeviceIdentified(this);
+            if (this.DeviceIdentified != null)
+                this.DeviceIdentified(this, new InsteonDeviceEventArgs(this));
+            this.network.Devices.OnDeviceIdentified(this);
         }
 
         private void OnDeviceStatusChanged(InsteonDeviceStatus status)
         {
-            if (DeviceStatusChanged != null)
-                DeviceStatusChanged(this, new InsteonDeviceStatusChangedEventArgs(this, status));
-            network.Devices.OnDeviceStatusChanged(this, status);
+            if (this.DeviceStatusChanged != null)
+                this.DeviceStatusChanged(this, new InsteonDeviceStatusChangedEventArgs(this, status));
+            this.network.Devices.OnDeviceStatusChanged(this, status);
         }
 
         private void OnSetButtonPressed(InsteonMessage message)
         {
             if (this.Identity.IsEmpty)
             {
-                byte devCat = (byte)message.Properties[PropertyKey.DevCat];
-                byte subCat = (byte)message.Properties[PropertyKey.DevCat];
-                byte firmwareVersion = (byte)message.Properties[PropertyKey.DevCat];
+                var devCat = (byte)message.Properties[PropertyKey.DevCat];
+                var subCat = (byte)message.Properties[PropertyKey.DevCat];
+                var firmwareVersion = (byte)message.Properties[PropertyKey.DevCat];
                 this.Identity = new InsteonIdentity(devCat, subCat, firmwareVersion);
             }
-            OnDeviceIdentified();
+            this.OnDeviceIdentified();
         }
 
         internal void OnMessage(InsteonMessage message)
@@ -219,44 +220,44 @@ namespace Insteon.Network
             switch (message.MessageType)
             {
                 case InsteonMessageType.Ack:
-                    PendingCommandAck(message);
+                    this.PendingCommandAck(message);
                     break;
 
                 case InsteonMessageType.OnCleanup:
-                    OnDeviceStatusChanged(InsteonDeviceStatus.On);
+                    this.OnDeviceStatusChanged(InsteonDeviceStatus.On);
                     break;
 
                 case InsteonMessageType.OffCleanup:
-                    OnDeviceStatusChanged(InsteonDeviceStatus.Off);
+                    this.OnDeviceStatusChanged(InsteonDeviceStatus.Off);
                     break;
 
                 case InsteonMessageType.FastOnCleanup:
-                    OnDeviceStatusChanged(InsteonDeviceStatus.On);
-                    OnDeviceStatusChanged(InsteonDeviceStatus.FastOn);
+                    this.OnDeviceStatusChanged(InsteonDeviceStatus.On);
+                    this.OnDeviceStatusChanged(InsteonDeviceStatus.FastOn);
                     break;
 
                 case InsteonMessageType.FastOffCleanup:
-                    OnDeviceStatusChanged(InsteonDeviceStatus.Off);
-                    OnDeviceStatusChanged(InsteonDeviceStatus.FastOff);
+                    this.OnDeviceStatusChanged(InsteonDeviceStatus.Off);
+                    this.OnDeviceStatusChanged(InsteonDeviceStatus.FastOff);
                     break;
 
                 case InsteonMessageType.IncrementBeginBroadcast:
-                    dimmerDirection = message.Properties[PropertyKey.IncrementDirection] != 0 ? DimmerDirection.Up : DimmerDirection.Down;
+                    this.dimmerDirection = message.Properties[PropertyKey.IncrementDirection] != 0 ? DimmerDirection.Up : DimmerDirection.Down;
                     break;
 
                 case InsteonMessageType.IncrementEndBroadcast:
-                    if (dimmerDirection == DimmerDirection.Up)
+                    if (this.dimmerDirection == DimmerDirection.Up)
                     {
-                        OnDeviceStatusChanged(InsteonDeviceStatus.Brighten);
+                        this.OnDeviceStatusChanged(InsteonDeviceStatus.Brighten);
                     }
-                    else if (dimmerDirection == DimmerDirection.Down)
+                    else if (this.dimmerDirection == DimmerDirection.Down)
                     {
-                        OnDeviceStatusChanged(InsteonDeviceStatus.Dim);
+                        this.OnDeviceStatusChanged(InsteonDeviceStatus.Dim);
                     }
                     break;
 
                 case InsteonMessageType.SetButtonPressed:
-                    OnSetButtonPressed(message);
+                    this.OnSetButtonPressed(message);
                     break;
             }
         }
@@ -264,20 +265,20 @@ namespace Insteon.Network
         // if a command is pending determines whether the current message completes the pending command
         private void PendingCommandAck(InsteonMessage message)
         {
-            lock (pendingEvent)
+            lock (this.pendingEvent)
             {
-                if (pendingCommand != null)
+                if (this.pendingCommand != null)
                 {
-                    int cmd1 = message.Properties[PropertyKey.Cmd1];
+                    var cmd1 = message.Properties[PropertyKey.Cmd1];
                     if (Enum.IsDefined(typeof(InsteonDeviceCommands), cmd1))
                     {
-                        InsteonDeviceCommands command = (InsteonDeviceCommands)cmd1;
-                        if (pendingCommand.Value == command)
+                        var command = (InsteonDeviceCommands)cmd1;
+                        if (this.pendingCommand.Value == command)
                         {
-                            pendingCommand = null;
-                            pendingValue = 0;
-                            ackTimer.Change(Timeout.Infinite, Timeout.Infinite); // stop ACK timeout timer
-                            pendingEvent.Set(); // unblock any thread that may be waiting on the pending command
+                            this.pendingCommand = null;
+                            this.pendingValue = 0;
+                            this.ackTimer.Change(Timeout.Infinite, Timeout.Infinite); // stop ACK timeout timer
+                            this.pendingEvent.Set(); // unblock any thread that may be waiting on the pending command
                         }
                     }
                 }
@@ -286,56 +287,56 @@ namespace Insteon.Network
 
         private void ClearPendingCommand()
         {
-            lock (pendingEvent)
+            lock (this.pendingEvent)
             {
-                pendingCommand = null;
-                pendingValue = 0;
-                ackTimer.Change(Timeout.Infinite, Timeout.Infinite); // stop ACK timeout timer
-                pendingEvent.Set(); // unblock any thread that may be waiting on the pending command
+                this.pendingCommand = null;
+                this.pendingValue = 0;
+                this.ackTimer.Change(Timeout.Infinite, Timeout.Infinite); // stop ACK timeout timer
+                this.pendingEvent.Set(); // unblock any thread that may be waiting on the pending command
             }
         }
 
         // invoked when a pending command times out
         private void PendingCommandTimerCallback(object state)
         {
-            ackTimer.Change(Timeout.Infinite, Timeout.Infinite); // stop ACK timeout timer
+            this.ackTimer.Change(Timeout.Infinite, Timeout.Infinite); // stop ACK timeout timer
 
-            bool retry = false;
-            InsteonDeviceCommands command = InsteonDeviceCommands.On;
+            var retry = false;
+            var command = InsteonDeviceCommands.On;
             byte value = 0;
-            int retryCount = 0;
+            var retryCount = 0;
             
-            lock (pendingEvent)
+            lock (this.pendingEvent)
             {
-                if (pendingCommand == null)
+                if (this.pendingCommand == null)
                     return;
 
-                pendingRetry += 1;
-                if (pendingRetry <= Constants.deviceCommandRetries)
+                this.pendingRetry += 1;
+                if (this.pendingRetry <= Constants.deviceCommandRetries)
                 {
                     retry = true;
-                    value = pendingValue;
-                    retryCount = pendingRetry;
+                    value = this.pendingValue;
+                    retryCount = this.pendingRetry;
                 }
                 else
                 {
                     retry = false;
-                    command = pendingCommand.Value;
-                    pendingCommand = null;
-                    pendingValue = 0;
-                    pendingEvent.Set(); // unblock any thread that may be waiting on the pending command                
+                    command = this.pendingCommand.Value;
+                    this.pendingCommand = null;
+                    this.pendingValue = 0;
+                    this.pendingEvent.Set(); // unblock any thread that may be waiting on the pending command                
                 }
             }
             
             if (retry)
             {
-                Log.WriteLine("WARNING: Device {0} Command {1} timed out, retry {2} of {3}...", Address.ToString(), command, retryCount, Constants.deviceCommandRetries);
-                TryCommandInternal(command, value);
+                Log.WriteLine("WARNING: Device {0} Command {1} timed out, retry {2} of {3}...", this.Address.ToString(), command, retryCount, Constants.deviceCommandRetries);
+                this.TryCommandInternal(command, value);
             }
             else
             {
-                Log.WriteLine("ERROR: Device {0} Command {1} timed out", Address.ToString(), command);
-                OnDeviceCommandTimeout();
+                Log.WriteLine("ERROR: Device {0} Command {1} timed out", this.Address.ToString(), command);
+                this.OnDeviceCommandTimeout();
             }
         }
 
@@ -351,9 +352,9 @@ namespace Insteon.Network
         public bool TryCommand(InsteonDeviceCommands command)
         {
             if (command == InsteonDeviceCommands.On)
-                return TryCommand(command, 0xFF);
+                return this.TryCommand(command, 0xFF);
             else
-                return TryCommand(command, 0x00);
+                return this.TryCommand(command, 0x00);
         }
 
         /// <summary>
@@ -369,24 +370,24 @@ namespace Insteon.Network
         /// </remarks>
         public bool TryCommand(InsteonDeviceCommands command, byte value)
         {
-            WaitAndSetPendingCommand(command, value);
-            return TryCommandInternal(command, value);
+            this.WaitAndSetPendingCommand(command, value);
+            return this.TryCommandInternal(command, value);
         }
 
         private bool TryCommandInternal(InsteonDeviceCommands command, byte value)
         {
-            byte[] message = GetStandardMessage(Address, (byte)command, value);
-            Log.WriteLine("Device {0} Command(command:{1}, value:{2:X2})", Address.ToString(), command.ToString(), value);
+            var message = GetStandardMessage(this.Address, (byte)command, value);
+            Log.WriteLine("Device {0} Command(command:{1}, value:{2:X2})", this.Address.ToString(), command.ToString(), value);
 
-            EchoStatus status = network.Messenger.TrySend(message);
+            var status = this.network.Messenger.TrySend(message);
             if (status == EchoStatus.ACK)
             {
-                ackTimer.Change(Constants.deviceAckTimeout, Timeout.Infinite); // start ACK timeout timer   
+                this.ackTimer.Change(Constants.deviceAckTimeout, Timeout.Infinite); // start ACK timeout timer   
                 return true;
             }
             else
             {
-                ClearPendingCommand();
+                this.ClearPendingCommand();
                 return false;
             }
         }
@@ -402,21 +403,21 @@ namespace Insteon.Network
         /// </remarks>
         public bool TryGetOnLevel(out byte value)
         {
-            InsteonDeviceCommands command = InsteonDeviceCommands.StatusRequest;
-            WaitAndSetPendingCommand(command, 0);
-            Log.WriteLine("Device {0} GetOnLevel", Address.ToString());
-            byte[] message = GetStandardMessage(Address, (byte)command, 0);
+            const InsteonDeviceCommands command = InsteonDeviceCommands.StatusRequest;
+            this.WaitAndSetPendingCommand(command, 0);
+            Log.WriteLine("Device {0} GetOnLevel", this.Address.ToString());
+            var message = GetStandardMessage(this.Address, (byte)command, 0);
             Dictionary<PropertyKey, int> properties;
-            EchoStatus status = network.Messenger.TrySendReceive(message, true, 0x50, out properties); // on-level returned in cmd2 of ACK
-            if (status == EchoStatus.ACK && properties != null)
+            var status = this.network.Messenger.TrySendReceive(message, true, 0x50, out properties); // on-level returned in cmd2 of ACK
+            if ((status == EchoStatus.ACK) && (properties != null))
             {
                 value = (byte)properties[PropertyKey.Cmd2];
-                Log.WriteLine("Device {0} GetOnLevel returning {1:X2}", Address.ToString(), value);
+                Log.WriteLine("Device {0} GetOnLevel returning {1:X2}", this.Address.ToString(), value);
                 return true;
             }
             else
             {
-                ClearPendingCommand();
+                this.ClearPendingCommand();
                 value = 0;
                 return false;
             }
@@ -434,7 +435,7 @@ namespace Insteon.Network
         public bool TryIdentify()
         {
             this.Identity = new InsteonIdentity();
-            return TryCommand(InsteonDeviceCommands.IDRequest);
+            return this.TryCommand(InsteonDeviceCommands.IDRequest);
         }
 
         /// <summary>
@@ -449,8 +450,8 @@ namespace Insteon.Network
         /// </remarks>
         public bool TryUnlink(byte group)
         {
-            if (network.Controller.TryEnterLinkMode(InsteonLinkMode.Delete, group))
-                return TryCommand(InsteonDeviceCommands.EnterLinkingMode, group);
+            if (this.network.Controller.TryEnterLinkMode(InsteonLinkMode.Delete, group))
+                return this.TryCommand(InsteonDeviceCommands.EnterLinkingMode, group);
             else
                 return false;
         }
@@ -460,28 +461,28 @@ namespace Insteon.Network
         {
             InsteonDeviceCommands latchedPendingCommand;
 
-            lock (pendingEvent)
+            lock (this.pendingEvent)
             {
-                if (pendingCommand == null)
+                if (this.pendingCommand == null)
                 {
-                    pendingCommand = command;
-                    pendingValue = value;
-                    pendingRetry = 0;
+                    this.pendingCommand = command;
+                    this.pendingValue = value;
+                    this.pendingRetry = 0;
                     return;
                 }
-                latchedPendingCommand = pendingCommand.Value;
+                latchedPendingCommand = this.pendingCommand.Value;
             }
 
             // block current thread if a command is pending
-            Log.WriteLine("Device {0} blocking command {1} for pending command {2}", Address.ToString(), command.ToString(), latchedPendingCommand.ToString());
-            pendingEvent.Reset();
-            if (!pendingEvent.WaitOne(Constants.deviceAckTimeout)) // wait at most deviceAckTimeout seconds
+            Log.WriteLine("Device {0} blocking command {1} for pending command {2}", this.Address.ToString(), command.ToString(), latchedPendingCommand.ToString());
+            this.pendingEvent.Reset();
+            if (!this.pendingEvent.WaitOne(Constants.deviceAckTimeout)) // wait at most deviceAckTimeout seconds
             {
-                ClearPendingCommand(); // break deadlock and warn
-                Log.WriteLine("WARNING: Device {0} unblocking command {1} for pending command {2}", Address.ToString(), command.ToString(), latchedPendingCommand.ToString());
+                this.ClearPendingCommand(); // break deadlock and warn
+                Log.WriteLine("WARNING: Device {0} unblocking command {1} for pending command {2}", this.Address.ToString(), command.ToString(), latchedPendingCommand.ToString());
             }
 
-            WaitAndSetPendingCommand(command, value); // try again
+            this.WaitAndSetPendingCommand(command, value); // try again
         }
 
         /// <summary>
@@ -497,7 +498,7 @@ namespace Insteon.Network
         public void Unlink(byte group)
         {
             this.network.Controller.EnterLinkMode(InsteonLinkMode.Delete, group);
-            Command(InsteonDeviceCommands.EnterUnlinkingMode, group);
+            this.Command(InsteonDeviceCommands.EnterUnlinkingMode, group);
         }
     }
 }
