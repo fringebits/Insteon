@@ -24,9 +24,13 @@ namespace Insteon.Network
     /// <summary>
     /// Represents an INSTEON device address. Example: 19.9E.4E.
     /// </summary>
-    public struct InsteonAddress
+    public class InsteonAddress
     {
         private readonly int value;
+
+        public InsteonAddress()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the InsteonAddress class with an integer.
@@ -34,7 +38,7 @@ namespace Insteon.Network
         /// <param name="address">An integer representation of the INSTEON address. Example: 0x199E4E.</param>
         public InsteonAddress(int address)
         {
-            value = address;
+            this.value = address;
         }
 
         /// <summary>
@@ -45,7 +49,7 @@ namespace Insteon.Network
         /// <param name="a0">The low order byte part of the INSTEON address.</param>
         public InsteonAddress(byte a2, byte a1, byte a0)
         {
-            value = a0 | a1 << 8 | a2 << 16;
+            this.value = a0 | a1 << 8 | a2 << 16;
         }
 
         /// <summary>
@@ -59,9 +63,9 @@ namespace Insteon.Network
             {
                 switch (index)
                 {
-                    case 0: return (byte)((value & 0x0000FF) >> 0);
-                    case 1: return (byte)((value & 0x00FF00) >> 8);
-                    case 2: return (byte)((value & 0xFF0000) >> 16);
+                    case 0: return (byte)((this.value & 0x0000FF) >> 0);
+                    case 1: return (byte)((this.value & 0x00FF00) >> 8);
+                    case 2: return (byte)((this.value & 0xFF0000) >> 16);
                     default: throw new ArgumentOutOfRangeException();
                 }
             }
@@ -80,7 +84,7 @@ namespace Insteon.Network
         /// <summary>
         /// Gets a value indicating whether this InsteonAddress is empty.
         /// </summary>
-        public bool IsEmpty { get { return value == 0; } }
+        public bool IsEmpty { get { return this.value == 0; } }
 
         /// <summary>
         /// Converts the string representation of an INSTEON address to its numeric equivalent.
@@ -126,16 +130,25 @@ namespace Insteon.Network
         /// </summary>
         public override string ToString()
         {            
-            int a0 = (value & 0x0000FF) >> 0;
-            int a1 = (value & 0x00FF00) >> 8;
-            int a2 = (value & 0xFF0000) >> 16;
+            int a0 = (this.value & 0x0000FF) >> 0;
+            int a1 = (this.value & 0x00FF00) >> 8;
+            int a2 = (this.value & 0xFF0000) >> 16;
             return string.Format("{0:X2}.{1:X2}.{2:X2}", a2, a1, a0);
         }
 
         /// <summary>
         /// Returns the integer representation of the INSTEON address.
         /// </summary>
-        public int Value { get { return value; } }
-    }
+        public int Value { get { return this.value; } }
 
+        public override bool Equals(object obj)
+        {
+            return this.Value == ((InsteonAddress)obj).Value;
+        }
+
+        public override int GetHashCode()
+        {
+            return this.Value.GetHashCode();
+        }
+    }
 }
