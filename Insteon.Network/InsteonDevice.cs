@@ -14,13 +14,15 @@
 // <author>Dave Templin</author>
 // <email>info@insteon.net</email>
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Threading;
+
 namespace Insteon.Network
 {
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Threading;
-
     /// <summary>
     /// Represents an individual INSTEON device on the network.
     /// </summary>
@@ -155,10 +157,7 @@ namespace Insteon.Network
         {
             byte value;
             if (!this.TryGetOnLevel(out value))
-            {
                 throw new IOException();
-            }
-
             return value;
         }
 
@@ -220,7 +219,22 @@ namespace Insteon.Network
             switch (message.MessageType)
             {
                 case InsteonMessageType.Ack:
-                    this.PendingCommandAck(message);
+                    var cmd = this.PendingCommandAck(message);
+
+                    if (cmd.HasValue)
+                    {
+                        // This feels wrong, but I'm not seeing the 'DeviceStatusChanged' as a result of setting the status.
+                        // Could probably use some sort of 'map' here to map command to status.
+                        switch (cmd.Value)
+                        {
+                            case InsteonDeviceCommands.On:
+                                this.OnDeviceStatusChanged(InsteonDeviceStatus.On);
+                                break;
+                            case InsteonDeviceCommands.Off:
+                                this.OnDeviceStatusChanged(InsteonDeviceStatus.Off);
+                                break;
+                        }
+                    }
                     break;
 
                 case InsteonMessageType.OnCleanup:
@@ -263,7 +277,7 @@ namespace Insteon.Network
         }
 
         // if a command is pending determines whether the current message completes the pending command
-        private void PendingCommandAck(InsteonMessage message)
+        private InsteonDeviceCommands? PendingCommandAck(InsteonMessage message)
         {
             lock (this.pendingEvent)
             {
@@ -279,10 +293,13 @@ namespace Insteon.Network
                             this.pendingValue = 0;
                             this.ackTimer.Change(Timeout.Infinite, Timeout.Infinite); // stop ACK timeout timer
                             this.pendingEvent.Set(); // unblock any thread that may be waiting on the pending command
+                            return command;
                         }
                     }
                 }
             }
+
+            return null;
         }
 
         private void ClearPendingCommand()
@@ -403,13 +420,13 @@ namespace Insteon.Network
         /// </remarks>
         public bool TryGetOnLevel(out byte value)
         {
-            const InsteonDeviceCommands command = InsteonDeviceCommands.StatusRequest;
+            var command = InsteonDeviceCommands.StatusRequest;
             this.WaitAndSetPendingCommand(command, 0);
             Log.WriteLine("Device {0} GetOnLevel", this.Address.ToString());
             var message = GetStandardMessage(this.Address, (byte)command, 0);
             Dictionary<PropertyKey, int> properties;
             var status = this.network.Messenger.TrySendReceive(message, true, 0x50, out properties); // on-level returned in cmd2 of ACK
-            if ((status == EchoStatus.ACK) && (properties != null))
+            if (status == EchoStatus.ACK && properties != null)
             {
                 value = (byte)properties[PropertyKey.Cmd2];
                 Log.WriteLine("Device {0} GetOnLevel returning {1:X2}", this.Address.ToString(), value);

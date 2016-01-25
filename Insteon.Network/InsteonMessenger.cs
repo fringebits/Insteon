@@ -14,14 +14,15 @@
 // <author>Dave Templin</author>
 // <email>info@insteon.net</email>
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Threading;
+
 namespace Insteon.Network
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics;
-    using System.IO;
-    using System.Threading;
-
     // This class is responsible for processing raw messages into structured property lists and dispatching the result to individual device objects.
     // The responsibilities of the messenger include:
     //  - Owning the network bridge to the physical INSTEON network.
@@ -35,9 +36,9 @@ namespace Insteon.Network
         private readonly InsteonNetworkBridge bridge;
         private readonly List<WaitItem> waitList = new List<WaitItem>();
         private readonly Dictionary<string, Timer> duplicates = new Dictionary<string, Timer>(); // used to detect duplicate messages
-        private byte[] sentMessage; // bytes of last sent message, used to match the echo
-        private bool echoCommand;
-        private InsteonMessage echoMessage;
+        private byte[] sentMessage = null; // bytes of last sent message, used to match the echo
+        private bool echoCommand = false;
+        private InsteonMessage echoMessage = null;
 
         public Dictionary<PropertyKey, int> ControllerProperties { get; private set; }
 
@@ -88,10 +89,8 @@ namespace Insteon.Network
             {
                 // determine if message key matches an entry in the list
                 foreach (var item in this.duplicates)
-                {
                     if (message.Key == item.Key)
                         return true;
-                }
 
                 // create a new duplicte entry
                 var timer = new Timer(new TimerCallback(this.DuplicateMessageTimerCallback), message.Key, 0, 1000);
@@ -240,11 +239,9 @@ namespace Insteon.Network
         {
             properties = null;
             var item = new WaitItem(receiveMessageId);
-
+            
             lock (this.waitList)
-            {
                 this.waitList.Add(item);
-            }
 
             var status = this.TrySend(message, retryOnNak);
             if (status == EchoStatus.ACK)
